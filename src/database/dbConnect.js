@@ -4,6 +4,7 @@ const mongoose = require('mongoose')
 
 const connect = async () => {
     try {
+        mongoose.set('strictQuery', false)
         mongoose.connect(DATABASE_URL, {
             useNewUrlParser: true,
             useUnifiedTopology: true

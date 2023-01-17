@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
 const GameSchema = new mongoose.Schema(
     {
@@ -14,9 +14,12 @@ const GameSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        achievements: {
+        totalAchivements: {
             type: Number,
             required: true
+        },
+        achievements: {
+            type: [String]
         },
         playtime: {
             type: Number,

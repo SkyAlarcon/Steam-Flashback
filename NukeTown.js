@@ -1,11 +1,21 @@
 require("dotenv").config();
 const KEY = process.env.KEY
-const ID = "76561198175450183"
 
 const axios = require("axios")
 const gamesModel = require("./src/models/gamesModel")
-const userGameInfoModel = require("./src/models/userGameInfoModel")
 
+
+const moment = require("moment");
+
+console.log(moment().format("DDMMYY"))
+
+const tentativa = "tentativa"
+const variable = {a: 1, [tentativa]: "!" }
+const word = "tentativa"
+
+console.log(variable[word])
+
+/*
 // middle terra = 241930
 // a sala = 288160
 //miami 2 = 274170
