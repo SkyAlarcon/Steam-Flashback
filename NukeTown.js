@@ -1,21 +1,20 @@
 require("dotenv").config();
-const KEY = process.env.KEY
-
 const axios = require("axios")
 const gamesModel = require("./src/models/gamesModel")
 
 
 const moment = require("moment");
 
+console.log(moment().format("LT"))
 console.log(moment().format("DDMMYY"))
+console.log(moment().format('DMY'))
 
+/*
 const tentativa = "tentativa"
 const variable = {a: 1, [tentativa]: "!" }
 const word = "tentativa"
-
 console.log(variable[word])
 
-/*
 // middle terra = 241930
 // a sala = 288160
 //miami 2 = 274170
@@ -23,9 +22,10 @@ ident = 76561198175450183
 steamID = 76561198175450183
 axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${KEY}&steamid=${steamID}&include_appinfo=true&format=json`)
 .then(function (res) {
+  console.log(res)
   const games = res.data.response.games
-  console.table (games)
-  console.log(res.data.response.games[128]);
+  console.log (games)
+  console.log(res.data.response.games);
 })
 .catch(function (error) {
   console.log(error);

@@ -1,5 +1,5 @@
 require("dotenv").config();
-require("./controller/botController")
+require("./controller/botController");
 
 const express = require("express")
 const cors = require("cors")

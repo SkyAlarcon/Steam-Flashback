@@ -7,11 +7,11 @@ const ProfileSchema = new mongoose.Schema(
             default: mongoose.Types.ObjectId
         },
         telegramID: {
-            type: Number,
+            type: String,
             required: true
         },
         steamID: {
-            type: Number,
+            type: String,
             required: true
         },
         days: {

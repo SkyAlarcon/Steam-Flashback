@@ -24,6 +24,13 @@ bot.command("create", async ctx => {
     if (!steamID){
         return ctx.reply(`To create you profile, send "/create [SteamID]".\nIf you don't know your SteamID, access this link https://steamid.xyz/ \nCopy and paste you Steam Profile URL\nThe number under Steam64 ID is the number we're looking for!`);
     };
+    if (steamID.length > 18) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help")
+    let idIsNumber = true;
+    const numbers = "0123456789";
+    for (let checkIndex = 0; checkIndex < steamID.length && idIsNumber; checkIndex++){
+        if (!numbers.includes(steamID[checkIndex])) idIsNumber = false;
+    };
+    if (!idIsNumber) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help")
     await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${steamID}`)
         .then(async res => {
             const profileInfo = res.data.response.players[0];
@@ -39,12 +46,12 @@ bot.command("create", async ctx => {
         .catch(err => {
             console.log(err);
         });
-    const profile = profileModel.findOne({"telegramID": ctx.from.id});
+    const profile = await profileModel.findOne({"telegramID": ctx.from.id});
     await axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)
         .then(async res => {
             const gamesList = res.data.response.games;
             profile.library = [];
-            ctx.reply(`Looking at your games now!\nThis may take a while, we found ${gamesList.length} titles in your library`)
+            ctx.reply(`Looking at your games now!\nThis may take a while, we found ${gamesList.length} titles in your library\nWe migth not keep track of everything due no recorded activity`);
             for (let libraryIndex = 0; libraryIndex < gamesList.length; libraryIndex++){
                 if (gamesList[libraryIndex].playtime_forever != 0){
                     profile.library.push(
@@ -59,8 +66,8 @@ bot.command("create", async ctx => {
         .catch(err => {
             console.log(err);
         });
-        const date = moment().format("DDMMYY")
-        profile.temp = []
+        const date = moment().format("DDMMYY");
+        profile.temp = [];
     for (let appidIndex = 0; appidIndex < profile.library.length; appidIndex++){
         await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${profile.library[appidIndex].appid}&key=${STEAMKEY}&steamid=${steamID}`)
             .then(async res => {
@@ -77,7 +84,7 @@ bot.command("create", async ctx => {
     };
     profile.days = [{[date]:profile.temp}];
     await profileModel.findOneAndUpdate({telegramID: ctx.from.id}, {days: profile.days});
-    return ctx.replyWithMarkdownV2(`We saved all your games info\\!\nFeel free to play and let the rest to me\\!`);
+    return ctx.replyWithMarkdownV2(`We saved ${profile.temp.length} games info\\!\nFeel free to play and I take care of the rest\\!`);
 });
 
 bot.command("check", async ctx => {
@@ -87,19 +94,25 @@ bot.command("check", async ctx => {
     const timeElapsed = moment(firstDate, "DDMMYY").fromNow();
     const key = Object.keys(profileExists.days[profileExists.days.length-1]);
     const gamesMonitored = profileExists.days[profileExists.days.length-1][key].length;
-    ctx.reply(`We started monitoring your gaming activity ${timeElapsed}!\nThere are ${gamesMonitored} games being monitored in your profile!`)
-})
+    await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${profileExists.steamID}`)
+        .then(res => {
+            profileExists.name = res.data.response.players[0].personaname;
+        })
+        .catch(err => {
+            console.log(err);
+        });
+    return ctx.replyWithMarkdownV2(`Your Telegram is linked to *${profileExists.name}* Steam profile\\!\n\nWe started monitoring the gaming activity *${timeElapsed}*\\!\nThere are *${gamesMonitored}* games being watched\\!`);
+});
 
 bot.command("delete", ctx => {
-    return ctx.replyWithMarkdownV2(`To delete your account send:\n/destroy flashback\nRemember that *ALL* your data will be deleted. Be sure of your decision since it's irreversible!`)
+    return ctx.replyWithMarkdownV2(`To delete your account send:\n/destroy flashback\nRemember that *ALL* your data will be deleted\\. Be sure of your decision since it's irreversible\\!`)
 });
 
 bot.command("destroy", async ctx => {
     const confirmed = ctx.update.message.text.slice(8).trim();
     if (confirmed != "flashback") return ctx.replyWithMarkdownV2("*This action is irreversible\\!*\n*\\Be certain of your decision\\!*");
-    const profileExists = await profileModel.findOne({"telegramID": ctx.from.id});
+    const profileExists = await profileModel.findOneAndDelete({"telegramID": ctx.from.id});
     if (!profileExists) return ctx.reply("No profile found linked to this Telegram.\nIf you want to create one, use /create!");
-    await profileModel.findOneAndDelete({"telegramID": ctx.from.id});
     return ctx.reply("Your data has been deleted from the database.\nWe're sad to see you go ;-;");
 });
 
@@ -127,6 +140,28 @@ bot.command(["dev", "developer"], ctx => {
     return ctx.reply(`I was created by Sky Alarcon. Be sure to follow on Instagram @_skydoceu!\nAlso, take a peek at her Github profile: https://github.com/SkyAlarcon`)
 });
 
+const autoUpdate = require("./autoUpdate");
+const TELEGRAM_ID = process.env.TELEGRAM_ID;
+
+bot.command("update", async ctx => {
+    if (ctx.update.message.from.id != TELEGRAM_ID) return;
+    ctx.reply("Starting to update Database!")
+
+    const idList = await profileModel.find({},["id", "steamID"]);
+    for (let userIndex = 0; userIndex < idList.length; userIndex++){
+        await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${idList[userIndex].steamID}`)
+        .then(async res => {
+            if (!res.data.response.players[0]) return ctx.reply("No Steam user found");
+            ctx.replyWithMarkdownV2(`Profile being updated: *${res.data.response.players[0].personaname}*\\.`);
+            await autoUpdate(idList[userIndex].id);
+            ctx.reply(`Updated ${userIndex+1} of ${idList.length}!`);
+        })
+        .catch(err => {
+            console.log(err);
+        });
+    };
+    return ctx.reply("Auto updated Database!");
+});
 
 bot.launch();
 
