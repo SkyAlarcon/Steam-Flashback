@@ -16,22 +16,7 @@ bot.help(ctx => {
     return ctx.reply("Here are the commands that I know:\n/create - Create a profile for you Steam Flashback\n/update - Updates Steam ID\n/check - Retrieves Steam ID and Name from DB\n/delete - Deletes your Flashback Account\n/list - list all games on your library\n/game [name of the game] - retrieves game's info (Be sure to write it corrrectly)\n/appid - retrieves game's info by appID\n/flashback - W.I.P\n/dev - Dev's info");
 });
 
-bot.command("create", async ctx => { //refatctored to local DB
-/*
-    const accExists = await profileModel.findOne({telegramID: ctx.from.id});
-    if (accExists) return ctx.reply(`A Flashback account is already linked to this Telegram account!\nPlease use /check to verify your information ^^`);
-    const steamID = ctx.update.message.text.slice(7).trim();
-    if (!steamID){
-        return ctx.reply(`To create you profile, send "/create [SteamID]".\nIf you don't know your SteamID, access this link https://steamid.xyz/ \nCopy and paste you Steam Profile URL\nThe number under Steam64 ID is the number we're looking for!\nRemember to set your profile games and achievements to "Public"\\!`);
-    };
-    if (steamID.length > 18) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help")
-    let idIsNumber = true;
-    const numbers = "0123456789";
-    for (let checkIndex = 0; checkIndex < steamID.length && idIsNumber; checkIndex++){
-        if (!numbers.includes(steamID[checkIndex])) idIsNumber = false;
-    };
-    if (!idIsNumber) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help")
-*/
+bot.command("create", async ctx => {
     const userList = require("../database/users.json");
     const accExists = userList.find(user => { if (user.telegramID == ctx.from.id) return user; });
     if (accExists) return ctx.reply(`A Flashback account is already linked to this Telegram account!\nPlease use /check to verify your information ^^`);
@@ -46,23 +31,6 @@ bot.command("create", async ctx => { //refatctored to local DB
         if (!numbers.includes(steamID[checkIndex])) idIsNumber = false;
     };
     if (!idIsNumber) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help")
-/*
-    await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${steamID}`)
-        .then(async res => {
-            const profileInfo = res.data.response.players[0];
-            if (!profileInfo) return ctx.reply("No Steam user found. Please check the ID sent");
-            ctx.replyWithMarkdownV2(`Profile name: *${profileInfo.personaname}*\\.\n\nThe account is being set up\\!\nPlease wait a few seconds :3\nIf this is not the account you wanted, please wait for the setup to finish and update or delete the account\\!\nYou can come back later, I'll be giving you updates :3`);
-            const newProfile = new profileModel({
-                "telegramID": ctx.from.id,
-                "steamID": steamID
-            });
-            await newProfile.save();
-            return ctx.replyWithMarkdownV2(`*Congrats ${ctx.from.first_name}*\\!\n\nFlashback account created successfully\\!`);
-        })
-        .catch(err => {
-            console.log(err);
-        });
-*/
     fs.mkdirSync(`../src/database/usersGames/${ctx.message.from.id}`, {recursive: true}, err => {if (err) return console.log (err)});
     await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${steamID}`)
         .then(async res => {
@@ -121,11 +89,9 @@ bot.command("create", async ctx => { //refatctored to local DB
             })
             .catch(err => {});
     };
-
     const day = moment().format("DD");
     const month = moment().format("MM");
     const year = moment().format("YYYY");
-
     const gamesInfoString = JSON.stringify(profile.gamesInfo, null, 1);
     await fs.mkdirSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}`, {recursive: true}, err => {if (err) return console.log (err)});
     const error = await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}/${day}.json`, gamesInfoString, err => {
@@ -136,11 +102,6 @@ bot.command("create", async ctx => { //refatctored to local DB
     });
     if (error) return ctx.reply("Something went wrong, please contact the developer for support - Error 003\nUse /dev for contact info.");
     return ctx.replyWithMarkdownV2(`We saved ${profile.gamesInfo.length} games info\\!\nFeel free to play and I take care of the rest\\!`);
-/*
-    profile.days = [{[date]:profile.temp}];
-    await profileModel.findOneAndUpdate({telegramID: ctx.from.id}, {days: profile.days});
-    return ctx.replyWithMarkdownV2(`We saved ${profile.temp.length} games info\\!\nFeel free to play and I take care of the rest\\!`);
-*/
 });
 
 
@@ -230,15 +191,15 @@ const TELEGRAM_ID = process.env.TELEGRAM_ID;
 bot.command("update", async ctx => {
     if (ctx.update.message.from.id != TELEGRAM_ID) return;
     ctx.reply("Starting to update Database!")
+    const usersList = require("../database/users.json");
 
-    const idList = require("../database/users.json");
-    for (let userIndex = 0; userIndex < idList.length; userIndex++){
-        await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${idList[userIndex].steamID}`)
+    for (let userIndex = 0; userIndex < usersList.length; userIndex++){
+        await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${usersList[userIndex].steamID}`)
         .then(async res => {
-            if (!res.data.response.players[0]) return ctx.reply("No Steam user found");
+            if (!res.data.response.players[0]) return ctx.reply(`No Steam user found for ID ${usersList[userIndex].telegramID}`);
             ctx.replyWithMarkdownV2(`Profile being updated: *${res.data.response.players[0].personaname}*\\.`);
-            await autoUpdate(idList[userIndex].id);
-            ctx.reply(`Updated ${userIndex+1} of ${idList.length}!`);
+            await autoUpdate(usersList[userIndex].telegramID, usersList[userIndex].steamID);
+            await ctx.reply(`Updated ${userIndex+1} of ${usersList.length}!`);
         })
         .catch(err => {
             console.log(err);

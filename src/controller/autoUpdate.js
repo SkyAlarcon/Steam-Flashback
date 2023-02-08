@@ -4,16 +4,16 @@ const fs = require("fs");
 
 const STEAMKEY = process.env.STEAMKEY;
 
-const autoUpdate = async (id) => {
-    const userToBeUpdated = await profileModel.findById(id, ["steamID", "days", "id"]);
-    await axios.get (`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${userToBeUpdated.steamID}&include_appinfo=true&format=json`)
+const autoUpdate = async (telegramID, steamID) => {
+    const updatedGames = {}
+    await axios.get (`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)
         .then(async res=> {
             const gamesList = res.data.response.games;
             if (!gamesList) return;
-            userToBeUpdated.library = [];
+            updatedGames.library = [];
             for (let libraryIndex = 0; libraryIndex < gamesList.length; libraryIndex++){
                 if (gamesList[libraryIndex].playtime_forever != 0){
-                    userToBeUpdated.library.push(
+                    updatedGames.library.push(
                         {
                             appid: gamesList[libraryIndex].appid, 
                             playtime: gamesList[libraryIndex].playtime_forever
@@ -25,25 +25,28 @@ const autoUpdate = async (id) => {
         .catch(err => {
             console.log(err);
         });
-    if (!userToBeUpdated.library) return
-    const date = moment().format("DDMMYY");
-    userToBeUpdated.temp = [];
-    for (let appidIndex = 0; appidIndex < userToBeUpdated.library.length; appidIndex++){
-        await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${userToBeUpdated.library[appidIndex].appid}&key=${STEAMKEY}&steamid=${userToBeUpdated.steamID}`)
-            .then(async res => {
-                userToBeUpdated.temp.push({
-                    title: res.data.playerstats.gameName,
-                    appid: userToBeUpdated.library[appidIndex].appid,
-                    achievements: res.data.playerstats.achievements,
-                    playtime: userToBeUpdated.library[appidIndex].playtime
-                });
-            })
-            .catch(err => {
-                return //console.log(err);
+    if (!updatedGames.library) return;
+    updatedGames.temp = [];
+    for (let appidIndex = 0; appidIndex < updatedGames.library.length; appidIndex++){
+        await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${updatedGames.library[appidIndex].appid}&key=${STEAMKEY}&steamid=${updatedGames.steamID}`)
+        .then(async res => {
+            updatedGames.temp.push({
+                title: res.data.playerstats.gameName,
+                appid: updatedGames.library[appidIndex].appid,
+                achievements: res.data.playerstats.achievements,
+                playtime: updatedGames.library[appidIndex].playtime
             });
+        })
+        .catch(err => {
+            return //console.log(err);
+        });
     };
-    userToBeUpdated.days.push([{[date]: userToBeUpdated.temp}]);
-    await profileModel.findByIdAndUpdate(id, {days: userToBeUpdated.days});
+    const day = moment().format("DD");
+    const month = moment().format("MM");
+    const year = moment().format("YYYY");
+    await fs.mkdirSync(`./src/database/usersGames/${telegramID}/${year}/${month}`, {recursive: true}, err => {if(err) return console.log(err);});
+    const updatedGamesString = JSON.stringify(updatedGames, null, 1);
+    await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${year}/${month}/${day}.json`, updatedGamesString, err => {if(err) return console.log(err)});
     return;
 };
 

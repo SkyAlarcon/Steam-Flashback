@@ -1,3 +1,5 @@
 node_modules
 .env
 NukeTown.js
+src/database/usersGames
+src/database/users.json
