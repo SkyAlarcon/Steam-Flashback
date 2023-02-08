@@ -1,10 +1,8 @@
 const axios = require("axios");
 const moment = require("moment");
+const fs = require("fs");
 
 const STEAMKEY = process.env.STEAMKEY;
-
-const profileModel = require ("../models/profileModel");
-
 
 const autoUpdate = async (id) => {
     const userToBeUpdated = await profileModel.findById(id, ["steamID", "days", "id"]);
