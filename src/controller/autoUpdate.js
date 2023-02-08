@@ -47,7 +47,7 @@ const autoUpdate = async (telegramID, steamID) => {
     await fs.mkdirSync(`./src/database/usersGames/${telegramID}/${year}/${month}`, {recursive: true}, err => {if(err) return console.log(err);});
     const updatedGamesString = JSON.stringify(updatedGames, null, 1);
     await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${year}/${month}/${day}.json`, updatedGamesString, err => {if(err) return console.log(err)});
-    return;
+    return
 };
 
 module.exports = autoUpdate;
