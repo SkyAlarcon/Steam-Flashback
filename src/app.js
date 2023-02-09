@@ -3,8 +3,6 @@ require("./controller/botController");
 
 const express = require("express")
 const cors = require("cors")
-const db = require("./database/dbConnect")
-db.connect();
 
 const app = express();
 

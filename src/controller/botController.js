@@ -54,10 +54,10 @@ bot.command("create", async ctx => {
         });
     const profile = userList.find(user => {if (user.telegramID == ctx.from.id) return user;});
     if (!profile) return;
+    profile.library = [];
     await axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)
         .then(async res => {
             const gamesList = res.data.response.games;
-            profile.library = [];
             if (!gamesList) return ctx.reply("Your profile may be set to private, please verify your settings");
             ctx.reply(`Looking at your games now!\nThis may take a while, we found ${gamesList.length} titles in your library\nWe migth not keep track of everything due no recorded activity`);
             for (let libraryIndex = 0; libraryIndex < gamesList.length; libraryIndex++){
@@ -105,13 +105,20 @@ bot.command("create", async ctx => {
 });
 
 
-bot.command("check", async ctx => {//refactored to localDB
+bot.command("check", async ctx => {
     /*
     const profileExists = await profileModel.findOne({telegramID: ctx.from.id});
     */
     const userList = require("../database/users.json");
     const profileExists = userList.find(user => {if (user.telegramID == ctx.message.from.id) return user;});
     if (!profileExists) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
+    await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${profileExists.steamID}`)
+    .then(res => {
+        profileExists.name = res.data.response.players[0].personaname;
+    })
+    .catch(err => {
+        console.log(err);
+    });
     const years = fs.readdirSync(`./src/database/usersGames/${ctx.message.from.id}`);
     const months = fs.readdirSync(`./src/database/usersGames/${ctx.message.from.id}/${years[0]}`);
     const days = fs.readdirSync(`./src/database/usersGames/${ctx.message.from.id}/${years[0]}/${months[0]}`);
@@ -123,13 +130,6 @@ bot.command("check", async ctx => {//refactored to localDB
         year: moment().format("YYYY"),
     };
     const gamesList = require(`../database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}/${today.day}.json`);
-    await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${profileExists.steamID}`)
-        .then(res => {
-            profileExists.name = res.data.response.players[0].personaname;
-        })
-        .catch(err => {
-            console.log(err);
-        });
     return ctx.replyWithMarkdownV2(`Your Telegram is linked to *${profileExists.name}* Steam profile\\!\n\nWe started monitoring the gaming activity *${timeElapsed}*\\!\nThere are *${gamesList.length}* games being watched\\!`);
     
 
@@ -156,9 +156,17 @@ bot.command("delete", ctx => {
 bot.command("destroy", async ctx => {
     const confirmed = ctx.update.message.text.slice(8).trim();
     if (confirmed != "flashback") return ctx.replyWithMarkdownV2("*This action is irreversible\\!*\n*\\Be certain of your decision\\!*");
-    const profileExists = await profileModel.findOneAndDelete({"telegramID": ctx.from.id});
-    if (!profileExists) return ctx.reply("No profile found linked to this Telegram.\nIf you want to create one, use /create!");
-    return ctx.reply("Your data has been deleted from the database.\nWe're sad to see you go ;-;");
+    const usersList = require("../database/users.json");
+    const profileExistsIndex = usersList.findIndex((user) => { if (user.telegramID == ctx.message.from.id.toString()) return user;});
+    if (profileExistsIndex == -1) return ctx.reply("No account found, to create use /create");
+    usersList.splice(profileExistsIndex, 1);
+    const usersListString = JSON.stringify(usersList, null, 1);
+    const error = await fs.writeFileSync("./src/database/users.json", usersListString, err => {
+        if (err) return console.log(err);
+    });
+    if (error) return ctx.reply("Something went wrong, please contact the developer for support - Error 004\nUse /dev for contact info.")
+    await fs.rmSync(`./src/database/usersGames/${ctx.message.from.id}`, {recursive: true});
+    return ctx.reply("Your data has been deleted from the database.\nWe're sad to see you go ;-;\nWe'll be here if you want to come back!");
 });
 
 bot.command("list", ctx => {
@@ -171,14 +179,6 @@ bot.command("game", ctx => {
         return ctx.reply(`You asked for ${game}`);
     };
     return ctx.reply("Please write the name of the game like this: /game Title");
-});
-
-bot.command("appid", ctx => {
-    const appid = ctx.update.message.text.slice(6).trim();
-    if (appid){
-        return ctx.reply(`AppID: ${appid}\nGame: `);
-    };
-    return ctx.reply("Please write the name of the game like this: /appid ID");
 });
 
 bot.command(["dev", "developer"], ctx => {
