@@ -215,11 +215,14 @@ bot.command(["dev", "developer"], ctx => {
 const autoUpdate = require("./autoUpdate");
 const TELEGRAM_ID = process.env.TELEGRAM_ID;
 
+{handlerTimeout: 9_000_000}
+// O programa quebra aqui. Ele executa esse comando por 90000ms e dps vai pra um timeout automatico.
+// Eu não entendi o motivo do timeout, como configurar uma extensão (ou desabilitar) dos 90000ms
+// Erro: TimeoutError: Promise timed out after 90000 milliseconds
 bot.command("update", async ctx => {
     if (ctx.update.message.from.id != TELEGRAM_ID) return;
     ctx.reply("Starting to update Database!")
     const usersList = require("../database/users.json");
-
     for (let userIndex = 0; userIndex < usersList.length; userIndex++){
         await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${usersList[userIndex].steamID}`)
         .then(async res => {
@@ -233,7 +236,7 @@ bot.command("update", async ctx => {
         });
     };
     return ctx.reply("Auto updated Database!");
-});
+})
 
 bot.launch();
 
