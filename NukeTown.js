@@ -1,8 +1,10 @@
 require("dotenv").config();
 const axios = require("axios")
-const gamesModel = require("./src/models/gamesModel")
 
+const zero = 1
+if (zero) console.log ("0")
 
+/*
 const moment = require("moment");
 
 console.log(moment().format("LT"))
@@ -43,7 +45,7 @@ console.log(nomes.find (chave => {
     return chave
   }
 }) )*/
-
+/*
 console.log(moment().format("MM"))
 
 const files = fs.readdirSync("./src/database/usersGames/992460954")

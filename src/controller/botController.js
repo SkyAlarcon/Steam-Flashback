@@ -8,6 +8,8 @@ const { Telegraf } = require("telegraf");
 const TELEGRAM_KEY = process.env.TELEGRAM_KEY;
 const bot = new Telegraf(TELEGRAM_KEY);
 
+const numbers = "0123456789";
+
 bot.start(ctx => {
     return ctx.reply(`Heya!\nTo start, write /create\nAfter that, just follow the instructions provided\nIf you already have an account, you can skip this step!\nBe sure to read the commands, so you can know what I'm capable of!\nJust type /help\n(Please, no caps, I get sad if you shout at me ;-;)`)
 });
@@ -20,13 +22,12 @@ bot.command("create", async ctx => {
     const userList = require("../database/users.json");
     const accExists = userList.find(user => { if (user.telegramID == ctx.from.id) return user; });
     if (accExists) return ctx.reply(`A Flashback account is already linked to this Telegram account!\nPlease use /check to verify your information ^^`);
-    const steamID = ctx.update.message.text.slice(7).trim();
+    const steamID = ctx.update.message.text.trim().slice(7).trim();
     if (!steamID){
         return ctx.reply(`To create you profile, send "/create [SteamID]".\nIf you don't know your SteamID, access this link https://steamid.xyz/ \nCopy and paste you Steam Profile URL\nThe number under Steam64 ID is the number we're looking for!\nRemember to set your profile games and achievements to "Public"\\!`);
     };
     if (steamID.length > 18) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help")
     let idIsNumber = true;
-    const numbers = "0123456789";
     for (let checkIndex = 0; checkIndex < steamID.length && idIsNumber; checkIndex++){
         if (!numbers.includes(steamID[checkIndex])) idIsNumber = false;
     };
@@ -58,7 +59,7 @@ bot.command("create", async ctx => {
     await axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)
         .then(async res => {
             const gamesList = res.data.response.games;
-            if (!gamesList) return ctx.reply("Your profile may be set to private, please verify your settings");
+            if (!gamesList || gamesList.length == 0) return ctx.reply("Your profile may be set to private, please verify your settings");
             ctx.reply(`Looking at your games now!\nThis may take a while, we found ${gamesList.length} titles in your library\nWe migth not keep track of everything due no recorded activity`);
             for (let libraryIndex = 0; libraryIndex < gamesList.length; libraryIndex++){
                 if (gamesList[libraryIndex].playtime_forever != 0){
@@ -75,6 +76,7 @@ bot.command("create", async ctx => {
             console.log(err);
         });
         profile.gamesInfo = [];
+        profile.list = [];
     for (let appidIndex = 0; appidIndex < profile.library.length; appidIndex++){
         if (appidIndex == Math.floor(profile.library.length/2)) ctx.reply ("Halfway through");
         if (appidIndex == Math.floor(profile.library.length*3/4)) ctx.reply ("Almost done");
@@ -86,29 +88,33 @@ bot.command("create", async ctx => {
                     achievements: res.data.playerstats.achievements,
                     playtime: profile.library[appidIndex].playtimeb
                 });
+                profile.list.push(res.data.playerstats.gameName);
             })
             .catch(err => {});
     };
     const day = moment().format("DD");
     const month = moment().format("MM");
     const year = moment().format("YYYY");
-    const gamesInfoString = JSON.stringify(profile.gamesInfo, null, 1);
     await fs.mkdirSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}`, {recursive: true}, err => {if (err) return console.log (err)});
+    const gamesInfoString = JSON.stringify(profile.gamesInfo, null, 1);
     const error = await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}/${day}.json`, gamesInfoString, err => {
         if (err){
-            ctx.reply("Please contact the dev for support - Error 002\nUse /dev for contact info.");
+            ctx.reply("Please contact the dev for support - Error 002.0\nUse /dev for contact info.");
             return err
         };
     });
     if (error) return ctx.reply("Something went wrong, please contact the developer for support - Error 003\nUse /dev for contact info.");
+    const gamesListString = JSON.stringify(profile.list, null, 1);
+    await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}/list.json`, gamesListString, err => {
+        if (err){
+            ctx.reply("Please contact the dev for support - Error 002.1\nUse /dev for contact info.");
+            return err
+        };
+    });
     return ctx.replyWithMarkdownV2(`We saved ${profile.gamesInfo.length} games info\\!\nFeel free to play and I take care of the rest\\!`);
 });
 
-
 bot.command("check", async ctx => {
-    /*
-    const profileExists = await profileModel.findOne({telegramID: ctx.from.id});
-    */
     const userList = require("../database/users.json");
     const profileExists = userList.find(user => {if (user.telegramID == ctx.message.from.id) return user;});
     if (!profileExists) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
@@ -131,22 +137,6 @@ bot.command("check", async ctx => {
     };
     const gamesList = require(`../database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}/${today.day}.json`);
     return ctx.replyWithMarkdownV2(`Your Telegram is linked to *${profileExists.name}* Steam profile\\!\n\nWe started monitoring the gaming activity *${timeElapsed}*\\!\nThere are *${gamesList.length}* games being watched\\!`);
-    
-
-    /*
-    const firstDate = Object.keys(profileExists.days[0]);
-    const timeElapsed = moment(firstDate, "DDMMYY").fromNow();
-    const key = Object.keys(profileExists.days[profileExists.days.length-1]);
-    const gamesMonitored = profileExists.days[profileExists.days.length-1][key].length;
-    await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${profileExists.steamID}`)
-        .then(res => {
-            profileExists.name = res.data.response.players[0].personaname;
-        })
-        .catch(err => {
-            console.log(err);
-        });
-    return ctx.replyWithMarkdownV2(`Your Telegram is linked to *${profileExists.name}* Steam profile\\!\n\nWe started monitoring the gaming activity *${timeElapsed}*\\!\nThere are *${gamesMonitored}* games being watched\\!`);
-    */
 });
 
 bot.command("delete", ctx => {
@@ -170,15 +160,52 @@ bot.command("destroy", async ctx => {
 });
 
 bot.command("list", ctx => {
+    const userList = require("../database/users.json");
+    const profileExists = userList.find(user => {if (user.telegramID == ctx.message.from.id) return user;});
+    if (!profileExists) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
+    const today = {
+        month: moment().format("MM"),
+        year: moment().format("YYYY"),
+    };
+    
+    const gamesList = require(`../database/usersGames/${profileExists.telegramID}/${today.year}/${today.month}/list.json`);
+    let gamesListFormated = ""
+    for (let index = 0; index < gamesList.length; index++){
+        gamesListFormated += `${index+1}. ${gamesList[index]}\n`
+    }
+    gamesListFormated.trim();
+    return ctx.reply(`${gamesListFormated}`)
     return ctx.reply("You called /list command");
 });
 
 bot.command("game", ctx => {
-    const game = ctx.update.message.text.slice(6).trim();
-    if (game){
-        return ctx.reply(`You asked for ${game}`);
+    const userList = require("../database/users.json");
+    const profileExists = userList.find(user => { if (user.telegramID == ctx.from.id) return user; });
+    if (!profileExists) return ctx.reply(`No profiles found linked to your Telegram\nTo create one, use /create`);
+    const gameNumber = ctx.update.message.text.trim().slice(6).trim();
+    if (!gameNumber) return ctx.reply(`Please write the number of the game like this: /game [number]\nTo find the game number, use the command /list`);
+    if (gameNumber.length > 5) return ctx.reply("Could not read the number, please enter a valid value");
+    let isNumber = true;
+    for(let checkIndex = 0; checkIndex < gameNumber.length; checkIndex++){
+        if (!numbers.includes(gameNumber[checkIndex])){
+            isNumber = false;
+            break;
+        };
     };
-    return ctx.reply("Please write the name of the game like this: /game Title");
+    if (!isNumber) return ctx.reply("Please use only numbers to select a game");
+    const today = {
+        day: moment().format("DD"),
+        month: moment().format("MM"),
+        year: moment().format("YYYY")
+    };
+    const gameIndex = gameNumber - 1;
+    const gamesList = require(`../database/usersGames/${profileExists.telegramID}/${today.year}/${today.month}/${today.day}.json`);
+    const game = gamesList[gameIndex];
+    let achieved = 0;
+    for (let achievedIndex = 0; achievedIndex < game.achievements.length; achievedIndex++){
+        if (game.achievements[achievedIndex].achieved) achieved += 1;
+    };
+    return ctx.replyWithMarkdownV2(`*${game.title}*\nAchievements: *${achieved}/${game.achievements.length}*`);
 });
 
 bot.command(["dev", "developer"], ctx => {
