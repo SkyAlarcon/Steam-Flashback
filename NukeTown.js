@@ -2,7 +2,11 @@ require("dotenv").config();
 const axios = require("axios")
 
 const zero = 1
-if (zero) console.log ("0")
+//if (zero) console.log ("0")
+
+const bom = 1
+const dia = 2
+console.log (`${bom} ${dia}`)
 
 /*
 const moment = require("moment");

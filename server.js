@@ -1,4 +1,3 @@
-const moment = require("moment");
 const app = require("./src/app");
 
 const PORT = process.env.PORT

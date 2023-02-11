@@ -6,7 +6,7 @@ const STEAMKEY = process.env.STEAMKEY;
 
 const { Telegraf } = require("telegraf");
 const TELEGRAM_KEY = process.env.TELEGRAM_KEY;
-const bot = new Telegraf(TELEGRAM_KEY);
+const bot = new Telegraf(TELEGRAM_KEY, {handlerTimeout: 9000000});
 
 const numbers = "0123456789";
 
@@ -15,7 +15,7 @@ bot.start(ctx => {
 });
 
 bot.help(ctx => {
-    return ctx.reply("Here are the commands that I know:\n/create - Create a profile for you Steam Flashback\n/update - Updates Steam ID\n/check - Retrieves Steam ID and Name from DB\n/delete - Deletes your Flashback Account\n/list - list all games on your library\n/game [name of the game] - retrieves game's info (Be sure to write it corrrectly)\n/appid - retrieves game's info by appID\n/flashback - W.I.P\n/dev - Dev's info");
+    return ctx.reply("Here are the commands that I know:\n/create - Create a profile for you Steam Flashback\n/update - Updates Steam ID\n/check - Retrieves Steam ID and Name from DB\n/delete - Deletes your Flashback Account\n/list - list all games on your library\n/game [number of the game] - retrieves game's info (Be sure to write it corrrectly)\n/flashback - W.I.P\n/dev - Dev's info");
 });
 
 bot.command("create", async ctx => {
@@ -32,7 +32,6 @@ bot.command("create", async ctx => {
         if (!numbers.includes(steamID[checkIndex])) idIsNumber = false;
     };
     if (!idIsNumber) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help")
-    fs.mkdirSync(`../src/database/usersGames/${ctx.message.from.id}`, {recursive: true}, err => {if (err) return console.log (err)});
     await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${steamID}`)
         .then(async res => {
             const profileInfo = res.data.response.players[0];
@@ -47,6 +46,7 @@ bot.command("create", async ctx => {
             const error = await fs.writeFileSync("./src/database/users.json", userListString, err => {
                 if (err) return console.log(err);
             });
+            fs.mkdirSync(`../src/database/usersGames/${ctx.message.from.id}`, {recursive: true}, err => {if (err) return console.log (err)});
             if (error) return ctx.reply("Something went wrong, please contact the developer for support - Error 001\nUse /dev for contact info.");
             return ctx.replyWithMarkdownV2(`*Congrats ${ctx.from.first_name}*\\!\n\nFlashback account created successfully\\!`);
         })
@@ -92,12 +92,14 @@ bot.command("create", async ctx => {
             })
             .catch(err => {});
     };
-    const day = moment().format("DD");
-    const month = moment().format("MM");
-    const year = moment().format("YYYY");
-    await fs.mkdirSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}`, {recursive: true}, err => {if (err) return console.log (err)});
+    const today = {
+        day: moment().format("DD"),
+        month: moment().format("MM"),
+        year: moment().format("YYYY"),
+    };
+    await fs.mkdirSync(`./src/database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}`, {recursive: true}, err => {if (err) return console.log (err)});
     const gamesInfoString = JSON.stringify(profile.gamesInfo, null, 1);
-    const error = await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}/${day}.json`, gamesInfoString, err => {
+    const error = await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}/${today.day}.json`, gamesInfoString, err => {
         if (err){
             ctx.reply("Please contact the dev for support - Error 002.0\nUse /dev for contact info.");
             return err
@@ -215,10 +217,12 @@ bot.command(["dev", "developer"], ctx => {
 const autoUpdate = require("./autoUpdate");
 const TELEGRAM_ID = process.env.TELEGRAM_ID;
 
-{handlerTimeout: 9_000_000}
+
 // O programa quebra aqui. Ele executa esse comando por 90000ms e dps vai pra um timeout automatico.
 // Eu não entendi o motivo do timeout, como configurar uma extensão (ou desabilitar) dos 90000ms
 // Erro: TimeoutError: Promise timed out after 90000 milliseconds
+
+// PROBLEMA RESOLVIDO - checar linha 9 - Solução demanda config especifica do bot ao requerir biblioteca
 bot.command("update", async ctx => {
     if (ctx.update.message.from.id != TELEGRAM_ID) return;
     ctx.reply("Starting to update Database!")
