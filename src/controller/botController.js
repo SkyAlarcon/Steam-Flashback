@@ -2,11 +2,13 @@ const axios = require("axios");
 const moment = require("moment")
 const fs = require("fs");
 
+const script = require("./scripts")
+
 const STEAMKEY = process.env.STEAMKEY;
 
 const { Telegraf } = require("telegraf");
 const TELEGRAM_KEY = process.env.TELEGRAM_KEY;
-const bot = new Telegraf(TELEGRAM_KEY, {handlerTimeout: 9000000});
+const bot = new Telegraf(TELEGRAM_KEY, {handlerTimeout: 300000});
 
 const numbers = "0123456789";
 
@@ -46,7 +48,7 @@ bot.command("create", async ctx => {
             const error = await fs.writeFileSync("./src/database/users.json", userListString, err => {
                 if (err) return console.log(err);
             });
-            fs.mkdirSync(`../src/database/usersGames/${ctx.message.from.id}`, {recursive: true}, err => {if (err) return console.log (err)});
+            fs.mkdirSync(`./src/database/usersGames/${ctx.message.from.id}`, {recursive: true}, err => {if (err) return console.log (err)});
             if (error) return ctx.reply("Something went wrong, please contact the developer for support - Error 001\nUse /dev for contact info.");
             return ctx.replyWithMarkdownV2(`*Congrats ${ctx.from.first_name}*\\!\n\nFlashback account created successfully\\!`);
         })
@@ -86,9 +88,11 @@ bot.command("create", async ctx => {
                     title: res.data.playerstats.gameName,
                     appid: profile.library[appidIndex].appid,
                     achievements: res.data.playerstats.achievements,
-                    playtime: profile.library[appidIndex].playtimeb
+                    playtime: profile.library[appidIndex].playtime
                 });
-                profile.list.push(res.data.playerstats.gameName);
+                profile.list.push({
+                    name: res.data.playerstats.gameName,
+                    playtime: profile.library[appidIndex].playtime});
             })
             .catch(err => {});
     };
@@ -98,6 +102,7 @@ bot.command("create", async ctx => {
         year: moment().format("YYYY"),
     };
     await fs.mkdirSync(`./src/database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}`, {recursive: true}, err => {if (err) return console.log (err)});
+    profile.gamesInfo = script.reformat(profile.gamesInfo)
     const gamesInfoString = JSON.stringify(profile.gamesInfo, null, 1);
     const error = await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}/${today.day}.json`, gamesInfoString, err => {
         if (err){
@@ -107,7 +112,7 @@ bot.command("create", async ctx => {
     });
     if (error) return ctx.reply("Something went wrong, please contact the developer for support - Error 003\nUse /dev for contact info.");
     const gamesListString = JSON.stringify(profile.list, null, 1);
-    await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${year}/${month}/list.json`, gamesListString, err => {
+    await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}/list.json`, gamesListString, err => {
         if (err){
             ctx.reply("Please contact the dev for support - Error 002.1\nUse /dev for contact info.");
             return err
@@ -161,6 +166,7 @@ bot.command("destroy", async ctx => {
     return ctx.reply("Your data has been deleted from the database.\nWe're sad to see you go ;-;\nWe'll be here if you want to come back!");
 });
 
+//REFACTOR
 bot.command("list", ctx => {
     const userList = require("../database/users.json");
     const profileExists = userList.find(user => {if (user.telegramID == ctx.message.from.id) return user;});
@@ -180,6 +186,7 @@ bot.command("list", ctx => {
     return ctx.reply("You called /list command");
 });
 
+//GAME
 bot.command("game", ctx => {
     const userList = require("../database/users.json");
     const profileExists = userList.find(user => { if (user.telegramID == ctx.from.id) return user; });
@@ -202,12 +209,9 @@ bot.command("game", ctx => {
     };
     const gameIndex = gameNumber - 1;
     const gamesList = require(`../database/usersGames/${profileExists.telegramID}/${today.year}/${today.month}/${today.day}.json`);
+    if (gameNumber > gamesList.length) return ctx.reply ("No game found with this number")
     const game = gamesList[gameIndex];
-    let achieved = 0;
-    for (let achievedIndex = 0; achievedIndex < game.achievements.length; achievedIndex++){
-        if (game.achievements[achievedIndex].achieved) achieved += 1;
-    };
-    return ctx.replyWithMarkdownV2(`*${game.title}*\nAchievements: *${achieved}/${game.achievements.length}*`);
+    return ctx.reply(`${game.title}\nAchievements: ${game.achieved}/${game.achievements.length}`);
 });
 
 bot.command(["dev", "developer"], ctx => {
@@ -217,12 +221,6 @@ bot.command(["dev", "developer"], ctx => {
 const autoUpdate = require("./autoUpdate");
 const TELEGRAM_ID = process.env.TELEGRAM_ID;
 
-
-// O programa quebra aqui. Ele executa esse comando por 90000ms e dps vai pra um timeout automatico.
-// Eu não entendi o motivo do timeout, como configurar uma extensão (ou desabilitar) dos 90000ms
-// Erro: TimeoutError: Promise timed out after 90000 milliseconds
-
-// PROBLEMA RESOLVIDO - checar linha 9 - Solução demanda config especifica do bot ao requerir biblioteca
 bot.command("update", async ctx => {
     if (ctx.update.message.from.id != TELEGRAM_ID) return;
     ctx.reply("Starting to update Database!")
@@ -231,7 +229,7 @@ bot.command("update", async ctx => {
         await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${usersList[userIndex].steamID}`)
         .then(async res => {
             if (!res.data.response.players[0]) return ctx.reply(`No Steam user found for ID ${usersList[userIndex].telegramID}`);
-            ctx.replyWithMarkdownV2(`Profile being updated: *${res.data.response.players[0].personaname}*\\.`);
+            ctx.replyWithMarkdownV2(`Profile being updated: *${res.data.response.players[0].personaname}*`);
             await autoUpdate(usersList[userIndex].telegramID, usersList[userIndex].steamID);
             await ctx.reply(`Updated ${userIndex+1} of ${usersList.length}!`);
         })
@@ -240,6 +238,81 @@ bot.command("update", async ctx => {
         });
     };
     return ctx.reply("Auto updated Database!");
+});
+
+bot.command("reformat", async ctx => {
+    if (ctx.update.message.from.id != TELEGRAM_ID) return;
+    const usersList = require("../database/users.json");
+    for(let userIndex = 0; userIndex < 1/*usersList.length*/; userIndex++){
+        const { telegramID } = usersList[userIndex];
+        const yearsList = await fs.readdirSync(`./src/database/usersGames/${telegramID}`);
+        for (let yearsIndex = 0; yearsIndex < yearsList.length; yearsIndex++){
+            const monthsList = await fs.readdirSync(`./src/database/usersGames/${telegramID}/${yearsList[yearsIndex]}`);
+            for(let monthsIndex = 0; monthsIndex < monthsList.length; monthsIndex++){
+                const daysList = await fs.readdirSync(`./src/database/usersGames/${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}`);
+                for (let daysIndex = 0; daysIndex < daysList.length - 1; daysIndex++){
+                    console.log(`Starting ${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}/${daysList[daysIndex]}`)
+                    const gamesInfo = await require(`../database/usersGames/${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}/${daysList[daysIndex]}`);
+                    const reformatedInfo = script.reformat(gamesInfo);
+                    const gamesInfoString = JSON.stringify(reformatedInfo, null, 1);
+                    const error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}/${daysList[daysIndex]}`, gamesInfoString, err => {
+                        if (err){
+                            return err
+                        };
+                    });
+                    if (error) {
+                        ctx.reply (`Deu ruim\nID: ${telegramID}\nYear: ${yearsList[yearsIndex]}\nMonth: ${monthsList[monthsIndex]}\nDay: ${daysList[daysIndex]}`);
+                    };
+                };
+            };
+        };
+    };
+});
+
+const months = {"jan": "01", 
+                "feb": "02", 
+                "mar": "03", 
+                "apr": "04", 
+                "may": "05", 
+                "jun": "06", 
+                "jul": "07", 
+                "ago": "08", 
+                "sep": "09", 
+                "oct": "10", 
+                "nov": "11", 
+                "dec": "12"};
+
+bot.command("recall", async ctx => {
+    if (ctx.update.message.from.id != TELEGRAM_ID) return;
+    const monthName = ctx.update.message.text.trim().slice(7).trim();
+    const monthNumber = months[monthName];
+    if(!monthNumber) return ctx.reply (`No month found. Please try again`);
+    const usersList = require("../database/users.json");
+    const year = moment().format("YYYY")
+    const daysList = await fs.readdirSync(`./src/database/usersGames/${usersList[0].telegramID}/${year}/${monthNumber}`);
+
+    const firstDay = await require(`../database/usersGames/${usersList[0].telegramID}/${year}/${monthNumber}/${daysList[0]}`)
+    const lastDay = await require(`../database/usersGames/${usersList[0].telegramID}/${year}/${monthNumber}/${daysList[daysList.length-2]}`);
+    console.log (firstDay, lastDay)
+
+
+    for (let dayIndex = 0; dayIndex < daysList.length; dayIndex++){
+        
+    }
+
+
+    //bot.telegram.sendMessage(TELEGRAM_ID, "Deu bom")
+});
+
+
+bot.hears ("test", async ctx => {
+    await axios.get (`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAMKEY}&steamid=76561198175450183&format=json`)
+        .then(res => {
+            console.log(res.data.response.games)
+        })
+        .catch( err => {
+            console.log(err)
+        })
 })
 
 bot.launch();

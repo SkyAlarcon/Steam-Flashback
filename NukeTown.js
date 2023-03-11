@@ -9,6 +9,7 @@ const dia = 2
 console.log (`${bom} ${dia}`)
 
 /*
+    bot.telegram.sendMessage(TELEGRAM_ID, "Deu bom")
 const moment = require("moment");
 
 console.log(moment().format("LT"))
@@ -72,8 +73,6 @@ console.log(variable[word])
 // middle terra = 241930
 // a sala = 288160
 //miami 2 = 274170
-ident = 76561198175450183
-steamID = 76561198175450183
 axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${KEY}&steamid=${steamID}&include_appinfo=true&format=json`)
 .then(function (res) {
   console.log(res)

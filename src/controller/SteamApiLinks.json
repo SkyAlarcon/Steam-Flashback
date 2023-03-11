@@ -1,5 +1,6 @@
 {
     "Summaries": "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=< key >&steamids=< Steam ID >",
     "Games": "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=< API key >&steamid=< Steam ID >&include_appinfo=true&format=json",
-    "Achievements": "http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=< game appid >&key=< API key >&steamid=< Steam ID >"
+    "Achievements": "http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=< game appid >&key=< API key >&steamid=< Steam ID >",
+    "RecentlyPlayed": "http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key= <STEAM KEY> &steamid= < STEAM ID > &format=json"
 }
