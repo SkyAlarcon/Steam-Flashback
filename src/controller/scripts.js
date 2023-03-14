@@ -44,8 +44,40 @@ const gameListFilter = async (steamID) => {
     return resolution;
 };
 
+const createFirstGamesList = async (allGames) => {
+    const gameList = [];
+    for (let gameIndex = 0; gameIndex < allGames.length; gameIndex++){
+        const gameInfo = {
+            name: allGames[gameIndex].title,
+            playtime: allGames[gameIndex].playtime
+        };
+        gameList.push(gameInfo);
+    };
+    return gameList;
+};
+
+const prepareGamesInfo = async (steamID, gamesList) => {
+    const gamesInfo = []
+    for (let gameIndex = 0; gameIndex < gamesList.length; gameIndex++) {
+        await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${gamesList[gameIndex].appid}&key=${STEAMKEY}&steamid=${steamID}`)
+            .then(async res => {
+                const gameRawInfo = res.data.playerstats
+                gamesInfo.push({
+                    title: gameRawInfo.gameName,
+                    appid: gamesList[gameIndex].appid,
+                    achievements: gameRawInfo.achievements,
+                    playtime: gamesList.playtime
+                });
+            })
+            .catch(err => {})
+    };
+    return gamesInfo;
+};
+
 module.exports = {
     wait,
     reformat,
-    gameListFilter
+    gameListFilter,
+    prepareGamesInfo,
+    createFirstGamesList
 };

@@ -59,37 +59,17 @@ bot.command("create", async ctx => {
     
     const profile = userList.find(user => {if (user.telegramID == ctx.from.id) return user;});
     if (!profile) return;
-    //TO SCRIPT TILL...
-    /*
-    await axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)
-    .then(async res => {
-        const gamesList = res.data.response.games;
-        if (!gamesList || gamesList.length == 0) return ctx.reply("Your profile may be set to private, please verify your settings");
-        ctx.reply(`Looking at your games now!\nThis may take a while, we found ${gamesList.length} titles in your library\nWe migth not keep track of everything due no recorded activity`);
-        for (let libraryIndex = 0; libraryIndex < gamesList.length; libraryIndex++){
-            if (gamesList[libraryIndex].playtime_forever != 0){
-                profile.library.push(
-                    {
-                        appid: gamesList[libraryIndex].appid, 
-                        playtime: gamesList[libraryIndex].playtime_forever
-                    }
-                    );
-                };
-            };
-        })
-        .catch(err => {
-            console.log(err);
-        });
-        */
-        // ... HERE
-
     profile.library = script.gameListFilter(steamID);
     if (typeof profile.library != Array) return ctx.reply ("No games foundn\nPlease check you Steam profile and set games privacy to 'Public'");
     ctx.reply(`Looking at your games now!\nThis may take a while, we found ${profile.library.length} titles in your library\nWe migth not keep track of everything due no recorded activity`);
     
     profile.gamesInfo = [];
     profile.list = [];
+
+    //REFACTOR TILL...
     
+    
+    /*
     for (let appidIndex = 0; appidIndex < profile.library.length; appidIndex++){
         if (appidIndex == Math.floor(profile.library.length/2)) ctx.reply ("Halfway through");
         if (appidIndex == Math.floor(profile.library.length*3/4)) ctx.reply ("Almost done");
@@ -104,9 +84,14 @@ bot.command("create", async ctx => {
             profile.list.push({
                 name: res.data.playerstats.gameName,
                 playtime: profile.library[appidIndex].playtime});
-        })
-        .catch(err => {});
-    };
+            })
+            .catch(err => {});
+        };
+        */
+    //HERE
+    profile.gamesInfo = script.prepareGamesInfo(steamID, profile.library);
+    profile.list = script.createFirstGamesList(profile.gamesInfo);
+       
     const today = {
         day: moment().format("DD"),
         month: moment().format("MM"),
@@ -114,7 +99,6 @@ bot.command("create", async ctx => {
     };
     await fs.mkdirSync(`./src/database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}`, {recursive: true}, err => {if (err) return console.log (err)});
     profile.gamesInfo = script.reformat(profile.gamesInfo)
-    console.log(profile.gamesInfo)
     const gamesInfoString = JSON.stringify(profile.gamesInfo, null, 1);
     const error = await fs.writeFileSync(`./src/database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}/${today.day}.json`, gamesInfoString, err => {
         if (err){
