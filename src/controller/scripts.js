@@ -1,3 +1,5 @@
+const STEAMKEY = process.env.STEAMKEY
+
 const wait = (miliseconds = 42000) => {
     setTimeout(()=> {
         return 1
@@ -17,7 +19,33 @@ const reformat = (gamesInfo) => {
     return gamesInfo;
 };
 
+const gameListFilter = async (steamID) => {
+    const games = {}
+    const resolution = await axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)
+                        .then(async res => {
+                            const gamesList = res.data.response.games;
+                            if (!gamesList || gamesList.length == 0) return "no games";
+
+                            for (let libraryIndex = 0; libraryIndex < gamesList.length; libraryIndex++){
+                                if (gamesList[libraryIndex].playtime_forever != 0){
+                                    games.library.push(
+                                        {
+                                            appid: gamesList[libraryIndex].appid, 
+                                            playtime: gamesList[libraryIndex].playtime_forever
+                                        }
+                                    );
+                                };
+                            };
+                            return games;
+                        })
+                        .catch(err => {
+                            console.log(err);
+                        });
+    return resolution;
+};
+
 module.exports = {
     wait,
-    reformat
+    reformat,
+    gameListFilter
 };
