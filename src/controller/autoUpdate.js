@@ -7,6 +7,29 @@ const script = require("./scripts");
 const STEAMKEY = process.env.STEAMKEY;
 
 const autoUpdate = async (telegramID, steamID) => {
+
+    /*
+    const yesterday = script.dayMonthYear(-1);
+    const yesterdayList = require(`../database/usersGames/${telegramID}/${yesterday.year}/${yesterday.month}/list.json`);
+    const gamesRecentlyPlayed = axios.get(`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&format=json`)
+                            .then(async res => {
+                                const allRecentGames = res.data.response.games
+                                const listRecentGames = [];
+                                for (let gameIndex = 0; gameIndex < allGames.length; gameIndex++){
+                                    const gameInfo = {
+                                        name: allRecentGames.name,
+                                        appid: allRecentGames.appid,
+                                        playtime: allRecentGames.playtime_forever
+                                    };
+                                    listRecentGames.push(gameInfo)
+                                };
+                                return listRecentGames
+                              })
+                            .catch(err => {});
+    const toUpdateList = script.createGamesList(yesterdayList, gamesRecentlyPlayed);
+
+    */
+
     const updatedGames = {}
     updatedGames.library = [];
     await axios.get (`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)

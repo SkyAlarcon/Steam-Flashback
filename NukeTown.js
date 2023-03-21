@@ -1,6 +1,38 @@
 require("dotenv").config();
 const axios = require("axios")
+const moment = require("moment");
 
+const STEAMKEY = process.env.STEAMKEY
+const STEAMID = process.env.STEAM_ID
+
+axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=256290&key=${STEAMKEY}&steamid=${STEAMID}`)
+        .then(async res => {
+            const achievementData = res.data.playerstats
+            console.log(!achievementData.achievements)
+        })
+
+/*
+console.log(moment().add((-1),"days").format("DD/MM/YYYY"))
+
+axios.get(`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAMKEY}&steamid=${STEAMID}&format=json`)
+  .then(async res => {
+    await console.log(res.data.response.games[0])
+  });
+
+axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${STEAMID}&include_appinfo=true&format=json`)
+  .then(async res => {
+    await console.log(res.data.response.games[0])
+  });
+  
+/*
+console.log("------------------------------")
+
+const yesterday = moment().subtract(0, "days").format("DDMMYY")
+console.log(yesterday)
+
+console.log("------------------------------")
+
+/*
 const zero = 1
 //if (zero) console.log ("0")
 
@@ -10,7 +42,6 @@ console.log (`${bom} ${dia}`)
 
 /*
     bot.telegram.sendMessage(TELEGRAM_ID, "Deu bom")
-const moment = require("moment");
 
 console.log(moment().format("LT"))
 console.log(moment().format("DDMMYY"))

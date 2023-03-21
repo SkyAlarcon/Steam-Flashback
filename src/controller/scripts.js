@@ -44,7 +44,7 @@ const gameListFilter = async (steamID) => {
     return resolution;
 };
 
-const createFirstGamesList = async (allGames) => {
+const createGamesList = async (allGames) => {
     const gameList = [];
     for (let gameIndex = 0; gameIndex < allGames.length; gameIndex++){
         const gameInfo = {
@@ -74,10 +74,42 @@ const prepareGamesInfo = async (steamID, gamesList) => {
     return gamesInfo;
 };
 
+const dayMonthYear = (dayCount = 0) => {
+    const date = {
+        day: moment().subtract(dayCount, "days").format("DD"),
+        month: moment().subtract(1, "days").format("MM"),
+        year: moment().subtract(1, "days").format("YYYY")
+    }
+    return date
+};
+
+const compareLists = (yesterdayList = [], recentlyPlayedList) => {
+    if (yesterdayList.length == 0 || recentlyPlayedList.length == 0) return recentlyPlayedList;
+    const toUpdateList = [];
+    for (let gameIndex = 0; gameIndex < recentlyPlayedList.length; recentlyPlayedList++){
+        const gameCheck = yesterdayList.find(game => {
+            if (recentlyPlayedList.playtime != game.playtime){
+                return
+            }
+        })
+        if (!gameCheck) continue;
+        const gameToUpdate = {
+            name: recentlyPlayedList[gameIndex].name,
+            appid: recentlyPlayedList[gameIndex].appid,
+            playtime: recentlyPlayedList[gameIndex].playtime
+        }
+        toUpdateList.push(gameToUpdate);
+    };
+    return toUpdateList;
+}
+
+
 module.exports = {
     wait,
     reformat,
     gameListFilter,
     prepareGamesInfo,
-    createFirstGamesList
+    createGamesList,
+    compareLists,
+    dayMonthYear
 };
