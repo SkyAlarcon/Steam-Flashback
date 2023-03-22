@@ -82,7 +82,7 @@ const autoUpdate = async (telegramID, steamID) => {
     const updatedGamesString = JSON.stringify(updatedGames.gamesInfo, null, 1);
     await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`, updatedGamesString, err => {if(err) return console.log(err)});
     const updatedGamesListString = JSON.stringify(updatedGames.list, null, 1);
-    await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/list.json`, updatedGamesListString, err => {
+    await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, updatedGamesListString, err => {
         if (err){
             ctx.reply("Please contact the dev for support - Error 002.1\nUse /dev for contact info.");
             return err

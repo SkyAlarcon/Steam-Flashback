@@ -5,10 +5,17 @@ const moment = require("moment");
 const STEAMKEY = process.env.STEAMKEY
 const STEAMID = process.env.STEAM_ID
 
-axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=256290&key=${STEAMKEY}&steamid=${STEAMID}`)
+const appid= 241930
+
+axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appid}&key=${STEAMKEY}&steamid=${STEAMID}`)
         .then(async res => {
-            const achievementData = res.data.playerstats
-            console.log(!achievementData.achievements)
+            const achievementsData = await res.data.playerstats.achievements;
+            if (!achievementsData) return false
+            console.log(achievementsData)
+            return achievementsData;
+        })
+        .catch(err => {
+            return false
         })
 
 /*

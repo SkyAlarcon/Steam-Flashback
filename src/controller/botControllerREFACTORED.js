@@ -1,17 +1,15 @@
+const STEAMKEY = process.env.STEAMKEY;
+const TELEGRAM_KEY = process.env.TELEGRAM_KEY;
+const DEV_ID = process.env.DEV_ID;
+
 const axios = require("axios");
 const moment = require("moment")
 const fs = require("fs");
 
-const script = require("./script2")
-
-const STEAMKEY = process.env.STEAMKEY;
-
 const { Telegraf } = require("telegraf");
-const TELEGRAM_KEY = process.env.TELEGRAM_KEY;
 const bot = new Telegraf(TELEGRAM_KEY, {handlerTimeout: 300000});
-const DEV_ID = process.env.DEV_ID;
 
-const numbers = "0123456789";
+const script = require("./script2")
 
 bot.start(ctx => {
     return ctx.reply(`Heya!\nTo start, write /create\nAfter that, just follow the instructions provided\nIf you already have an account, you can skip this step!\nBe sure to read the commands, so you can know what I'm capable of!\nJust type /help\n(Please, no caps, I get sad if you shout at me ;-;)\nThis bot is NOT afilliate to Steam!`)
@@ -21,10 +19,9 @@ bot.help(ctx => {
     return ctx.reply("Here are the commands that I know:\n/create - Create a profile for you Steam Flashback\n/update - Updates Steam ID\n/check - Retrieves Steam ID and Name from DB\n/delete - Deletes your Flashback Account\n/list - list all games on your library\n/game [number of the game] - retrieves game's info (Be sure to write it corrrectly)\n/flashback - W.I.P\n/dev - Dev's info");
 });
 
-
+/*
 bot.command("create", async ctx => {
-    const userList = require("../database/users.json");
-    const telegramID = ctx.from.id.toString();
+    const telegramID = ctx.from.id.toString();  
     const userRegistered = script.findUser(telegramID);
     if (userRegistered) return ctx.reply(`A Flashback account is already linked to this Telegram account!\nPlease use /check to verify your information ^^`);
     const steamID = ctx.update.message.text.trim().slice(7).trim().toString();
@@ -40,6 +37,7 @@ bot.command("create", async ctx => {
         "telegramID": telegramID,
         "steamID": steamID
     };
+    const userList = require("../database/users.json");
     userList.push(newProfile);
     const userListString = JSON.stringify(userList, null, 1);
     let error = fs.writeFileSync("./src/database/users.json", userListString, err => {
@@ -59,27 +57,16 @@ bot.command("create", async ctx => {
     if (allGames.length == 0) return ctx.reply("Couldn't find any games, please check your profile settings to confirm if your game data is set to public\nAny data will be available after the next database update (starts at 00:01 everyday)");
     ctx.replyWithMarkdownV2(`We found *${allGames.length}* games at your library\\!\nSome may not be saved due to no playtime\\!`);
     const playedGames = script.removeGameNoPlaytime(allGames);
-    const gamesList = script.createGamesList(playedGames);
-    const today = script.dayMonthYear();
+    const today = script.getDayMonthYear();
     error = fs.mkdirSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}`, {recursive: true}, err => {
         if (err) {
-            bot.telegram.sendMessage(DEV_ID, `botController.js - User database file creation\nSteam: ${profileUsername}\nTelegram ID: ${telegramID}\nTelegram Username: ${ctx.from.username}\nCreation of user directories failed`);
+            bot.telegram.sendMessage(DEV_ID, `botController.js - User database file creation\nSteam: ${profileUsername}\nTelegram ID: ${telegramID}\nTelegram Username: ${ctx.update.from.username}\nCreation of user directories failed`);
             return err
         };
         return false;
     });
     if (error) return ctx.reply(`We found an error, please contact the developer for help!`);
     if (playedGames.length == 0) return ctx.reply("Looks like you have not played any games at your account!\nNo worries, just go play a bit, all games info will be set up at the next database update (starts at 00:01 everyday)");
-    const gamesListStringfied = JSON.stringify(gamesList, null, 1);
-    error = fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/list.json`, gamesListStringfied, err => {
-        if (err) {
-            bot.telegram.sendMessage(DEV_ID, `botController.js - User game list saving process\nSteam: ${profileUsername}\nTelegram ID: ${telegramID}\nTelegram Username: ${ctx.from.username}\nSaving games list to database`);
-            return err;
-        };
-        return false;
-    });
-    if (error) return ctx.reply("We found an error, please contact the developer for help!");
-
     const allGamesData = [];
     for (let index = 0; index < playedGames.length; index++){
         const gameDataToSave = {
@@ -87,7 +74,7 @@ bot.command("create", async ctx => {
             "appid": playedGames[index].appid,
             "playtime": playedGames[index].playtime            
         };
-        const gameAchievements = script.retrieveGameAchievements(steamID, playedGames[index].appid);
+        const gameAchievements = await script.retrieveGameAchievements(steamID, playedGames[index].appid);
         if (gameAchievements){
             gameDataToSave.achievements = gameAchievements;
             gameDataToSave.achieved = script.countDoneAchievements(gameAchievements);
@@ -104,40 +91,38 @@ bot.command("create", async ctx => {
         return false;
     });
     if (error) return ctx.reply("We found an error, please contact the developer for help!");
+    error = fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, allGamesDataStringified, err => {
+        if (err) {
+            bot.telegram.sendMessage(DEV_ID, `botController.js - User game list saving process\nSteam: ${profileUsername}\nTelegram ID: ${telegramID}\nTelegram Username: ${ctx.from.username}\nSaving games list to database`);
+            return err;
+        };
+        return false;
+    });
+    if (error) return ctx.reply("We found an error, please contact the developer for help!");
     return ctx.replyWithMarkdownV2(`We saved ${allGamesData.length} games info\\!\nFeel free to play and we will take care of the rest\\!`);
 });
+*/
 
-
-//create fail-safe
 bot.command("check", async ctx => {
-    const userList = require("../database/users.json");
-    const profileExists = userList.find(user => {if (user.telegramID == ctx.message.from.id) return user;});
-    if (!profileExists) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
-    await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${profileExists.steamID}`)
-    .then(res => {
-        profileExists.name = res.data.response.players[0].personaname;
-    })
-    .catch(err => {
-        console.log(err);
-    });
-    const years = fs.readdirSync(`./src/database/usersGames/${ctx.message.from.id}`);
-    const months = fs.readdirSync(`./src/database/usersGames/${ctx.message.from.id}/${years[0]}`);
-    const days = fs.readdirSync(`./src/database/usersGames/${ctx.message.from.id}/${years[0]}/${months[0]}`);
-    const firstDay = days[0].slice(0, 2)+months[0]+years[0];
+    const telegramID = ctx.from.id;
+    const userRegistered = script.findUser(telegramID);
+    if (!userRegistered) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
+    const profileUsername = await script.getSteamUsername(userRegistered.steamID);
+    const years = fs.readdirSync(`./src/database/usersGames/${telegramID}`);
+    const months = fs.readdirSync(`./src/database/usersGames/${telegramID}/${years[0]}`);
+    const days = fs.readdirSync(`./src/database/usersGames/${telegramID}/${years[0]}/${months[0]}`);
+    const firstDay = days[0].slice(0, 2) + months[0] + years[0];
     const timeElapsed = moment(firstDay,"DDMMYYYY").fromNow();
-    const today = {
-        day: moment().format("DD"),
-        month: moment().format("MM"),
-        year: moment().format("YYYY"),
-    };
-    const gamesList = require(`../database/usersGames/${ctx.message.from.id}/${today.year}/${today.month}/${today.day}.json`);
-    return ctx.replyWithMarkdownV2(`Your Telegram is linked to *${profileExists.name}* Steam profile\\!\n\nWe started monitoring the gaming activity *${timeElapsed}*\\!\nThere are *${gamesList.length}* games being watched\\!`);
+    const today = script.getDayMonthYear();
+    const gamesList = require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`);
+    return ctx.replyWithMarkdownV2(`Your Telegram is linked to *${profileUsername}* Steam profile\\!\n\nWe started monitoring the gaming activity *${timeElapsed}*\\!\nThere are *${gamesList.length}* games being watched\\!\nTo see a list of your games, use /list`);
 });
 
 bot.command("delete", ctx => {
-    return ctx.replyWithMarkdownV2(`To delete your account send:\n/destroy flashback\nRemember that *ALL* your data will be deleted\\. Be sure of your decision since it's irreversible\\!`)
+    const confirmation = ctx.message.text.trim().slice(6).trim();
+    if (confirmation != "flashback") return ctx.replyWithMarkdownV2(`To delete your account send:\n/delete flashback\nRemember that *ALL* your data will be deleted\\. Be sure of your decision since it's irreversible\\!`)
 });
-
+//To unify with /delete
 bot.command("destroy", async ctx => {
     const confirmed = ctx.update.message.text.slice(8).trim();
     if (confirmed != "flashback") return ctx.replyWithMarkdownV2("*This action is irreversible\\!*\n*\\Be certain of your decision\\!*");
@@ -154,27 +139,23 @@ bot.command("destroy", async ctx => {
     return ctx.reply("Your data has been deleted from the database.\nWe're sad to see you go ;-;\nWe'll be here if you want to come back!");
 });
 
-//REFACTOR
+
+
+
+
+
 bot.command("list", ctx => {
-    const userList = require("../database/users.json");
-    const profileExists = userList.find(user => {if (user.telegramID == ctx.message.from.id) return user;});
-    if (!profileExists) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
-    const today = {
-        month: moment().format("MM"),
-        year: moment().format("YYYY"),
-    };
-    
-    const gamesList = require(`../database/usersGames/${profileExists.telegramID}/${today.year}/${today.month}/list.json`);
-    let gamesListFormated = ""
-    for (let index = 0; index < gamesList.length; index++){
-        gamesListFormated += `${index+1}. ${gamesList[index]}\n`
-    }
-    gamesListFormated.trim();
-    return ctx.reply(`${gamesListFormated}`)
-    return ctx.reply("You called /list command");
+    const telegramID = ctx.from.id;
+    const userRegistered = script.findUser(telegramID);
+    if (!userRegistered) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
+    const today = script.getDayMonthYear();
+    const gamesList = require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`);
+    const gamesListFormated = script.createGamesList(gamesList);
+    return ctx.reply(`${gamesListFormated}`);
 });
 
 //GAME
+/*
 bot.command("game", ctx => {
     const userList = require("../database/users.json");
     const profileExists = userList.find(user => { if (user.telegramID == ctx.from.id) return user; });
@@ -199,8 +180,9 @@ bot.command("game", ctx => {
     const gamesList = require(`../database/usersGames/${profileExists.telegramID}/${today.year}/${today.month}/${today.day}.json`);
     if (gameNumber > gamesList.length) return ctx.reply ("No game found with this number")
     const game = gamesList[gameIndex];
-    return ctx.reply(`${game.title}\nAchievements: ${game.achieved}/${game.achievements.length}`);
+    return ctx.reply(`${game.name}\nAchievements: ${game.achieved}/${game.achievements.length}`);
 });
+*/
 
 bot.command(["dev", "developer"], ctx => {
     return ctx.reply(`I was created by Sky Alarcon. Be sure to follow on Instagram @_skydoceu!\nAlso, take a peek at her Github profile: https://github.com/SkyAlarcon`)
@@ -230,7 +212,7 @@ bot.command("update", async ctx => {
 bot.command("reformat", async ctx => {
     if (ctx.update.message.from.id != DEV_ID) return;
     const usersList = require("../database/users.json");
-    for(let userIndex = 0; userIndex < 1/*usersList.length*/; userIndex++){
+    for(let userIndex = 1; userIndex < usersList.length; userIndex++){
         const { telegramID } = usersList[userIndex];
         const yearsList = await fs.readdirSync(`./src/database/usersGames/${telegramID}`);
         for (let yearsIndex = 0; yearsIndex < yearsList.length; yearsIndex++){
@@ -248,6 +230,7 @@ bot.command("reformat", async ctx => {
                         };
                     });
                     if (error) {
+                        bot.telegram.sendMessage(DEV_ID, `Deu ruim\nID: ${telegramID}\nYear: ${yearsList[yearsIndex]}\nMonth: ${monthsList[monthsIndex]}\nDay: ${daysList[daysIndex]}\n${error}`)
                         ctx.reply (`Deu ruim\nID: ${telegramID}\nYear: ${yearsList[yearsIndex]}\nMonth: ${monthsList[monthsIndex]}\nDay: ${daysList[daysIndex]}`);
                     };
                 };
@@ -256,6 +239,7 @@ bot.command("reformat", async ctx => {
     };
 });
 
+/*
 const months = {"jan": "01", 
                 "feb": "02", 
                 "mar": "03", 
@@ -290,7 +274,8 @@ bot.command("recall", async ctx => {
 
     //bot.telegram.sendMessage(TELEGRAM_ID, "Deu bom")
 });
-
+*/
+/*
 const STEAMID = process.env.STEAM_ID
 bot.hears ("test", async ctx => {
     console.log("1")
@@ -310,6 +295,7 @@ bot.hears ("test", async ctx => {
             console.log(err)
         })
 })
+*/
 
 bot.launch();
 
