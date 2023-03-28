@@ -1,12 +1,28 @@
 require("dotenv").config();
 const axios = require("axios")
 const moment = require("moment");
+const script = require("./src/controller/script2")
 
 const STEAMKEY = process.env.STEAMKEY
 const STEAMID = process.env.STEAM_ID
 
 const appid= 241930
+const resp = script.getRecentGames(STEAMID)
 
+console.log(resp)
+
+/*
+const a = "22032023";
+const b = moment().format("DDMMYYYY");
+const time = moment(a, "DDMMYYYY").diff(moment(b, "DDMMYYYY"), "days")
+
+console.log(time)
+
+const data = moment().add(time, "days").format("DDMMYYYY")
+console.log(data)
+
+
+/*
 axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appid}&key=${STEAMKEY}&steamid=${STEAMID}`)
         .then(async res => {
             const achievementsData = await res.data.playerstats.achievements;
@@ -17,7 +33,7 @@ axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v00
         .catch(err => {
             return false
         })
-
+*/
 /*
 console.log(moment().add((-1),"days").format("DD/MM/YYYY"))
 

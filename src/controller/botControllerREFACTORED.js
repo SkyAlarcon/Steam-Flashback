@@ -12,14 +12,14 @@ const bot = new Telegraf(TELEGRAM_KEY, {handlerTimeout: 300000});
 const script = require("./script2")
 
 bot.start(ctx => {
-    return ctx.reply(`Heya!\nTo start, write /create\nAfter that, just follow the instructions provided\nIf you already have an account, you can skip this step!\nBe sure to read the commands, so you can know what I'm capable of!\nJust type /help\n(Please, no caps, I get sad if you shout at me ;-;)\nThis bot is NOT afilliate to Steam!`)
+    return ctx.reply(`Heya!\nTo start, write /create\nAfter that, just follow the instructions provided\nIf you already have an account, you can skip this step!\nBe sure to read the commands, so you can know what I'm capable of!\nJust type /help\n(Please, no caps, I get sad if you shout at me ;-;)\nThis bot is NOT afilliate to Steam!`);
 });
 
 bot.help(ctx => {
     return ctx.reply("Here are the commands that I know:\n/create - Create a profile for you Steam Flashback\n/update - Updates Steam ID\n/check - Retrieves Steam ID and Name from DB\n/delete - Deletes your Flashback Account\n/list - list all games on your library\n/game [number of the game] - retrieves game's info (Be sure to write it corrrectly)\n/flashback - W.I.P\n/dev - Dev's info");
 });
 
-/*
+
 bot.command("create", async ctx => {
     const telegramID = ctx.from.id.toString();  
     const userRegistered = script.findUser(telegramID);
@@ -81,7 +81,6 @@ bot.command("create", async ctx => {
         };
         allGamesData.push(gameDataToSave);
     };
-
     const allGamesDataStringified = JSON.stringify(allGamesData, null, 1);
     error = fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`, allGamesDataStringified, err => {
         if (err) {
@@ -101,17 +100,14 @@ bot.command("create", async ctx => {
     if (error) return ctx.reply("We found an error, please contact the developer for help!");
     return ctx.replyWithMarkdownV2(`We saved ${allGamesData.length} games info\\!\nFeel free to play and we will take care of the rest\\!`);
 });
-*/
+
 
 bot.command("check", async ctx => {
     const telegramID = ctx.from.id;
     const userRegistered = script.findUser(telegramID);
     if (!userRegistered) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
     const profileUsername = await script.getSteamUsername(userRegistered.steamID);
-    const years = fs.readdirSync(`./src/database/usersGames/${telegramID}`);
-    const months = fs.readdirSync(`./src/database/usersGames/${telegramID}/${years[0]}`);
-    const days = fs.readdirSync(`./src/database/usersGames/${telegramID}/${years[0]}/${months[0]}`);
-    const firstDay = days[0].slice(0, 2) + months[0] + years[0];
+    const firstDay = script.getFirstDay(telegramID);
     const timeElapsed = moment(firstDay,"DDMMYYYY").fromNow();
     const today = script.getDayMonthYear();
     const gamesList = require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`);
@@ -139,80 +135,96 @@ bot.command("destroy", async ctx => {
     return ctx.reply("Your data has been deleted from the database.\nWe're sad to see you go ;-;\nWe'll be here if you want to come back!");
 });
 
-
-
-
-
-
-bot.command("list", ctx => {
+bot.command("game", async ctx => {
     const telegramID = ctx.from.id;
     const userRegistered = script.findUser(telegramID);
-    if (!userRegistered) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
-    const today = script.getDayMonthYear();
-    const gamesList = require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`);
-    const gamesListFormated = script.createGamesList(gamesList);
-    return ctx.reply(`${gamesListFormated}`);
+    if (!userRegistered) return ctx.reply(`No profiles found linked to your Telegram\nTo create one, use /create`);
+    const today = await script.getDayMonthYear();
+    const allGamesList = await require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`);
+    if (allGamesList == []) return "Sorry, you don't have any games saved :/\nPlease check you profile and set it to public so we can save your games on the next update <3";
+    const gameNumber = ctx.update.message.text.trim().slice(6).trim();
+    if (!gameNumber) {
+        const gamesListMessage = script.createGameListForUser(allGamesList);
+        return ctx.reply(`${gamesListMessage}`);
+    };
+    if (gameNumber.length > 5) return ctx.reply(`Could not read the number, please enter a number between 1 and ${allGamesList.length}`);
+    const isOnlyNumbers = script.verifyOnlyNumbers(gameNumber);
+    if (!isOnlyNumbers) return ctx.reply ("Please use only numbers");
+    const gameIndex = gameNumber - 1;
+    if (gameNumber > allGamesList.length || gameNumber == 0) return ctx.reply (`No game found with this number. Please enter a number between 1 and ${allGamesList.length}`);
+    const { name, playtime, achieved, achievements } = allGamesList[gameIndex];
+    const playtimeConverted = script.convertMinutesToHours(playtime);
+    let message = `${name}\nPlaytime: ${playtimeConverted.hours}h ${playtimeConverted.minutes}`
+    if (achievements) message += (`\nAchievements: ${achieved}/${achievements.length}`)
+    return ctx.reply(`${message}`);
 });
 
-//GAME
-/*
-bot.command("game", ctx => {
-    const userList = require("../database/users.json");
-    const profileExists = userList.find(user => { if (user.telegramID == ctx.from.id) return user; });
-    if (!profileExists) return ctx.reply(`No profiles found linked to your Telegram\nTo create one, use /create`);
-    const gameNumber = ctx.update.message.text.trim().slice(6).trim();
-    if (!gameNumber) return ctx.reply(`Please write the number of the game like this: /game [number]\nTo find the game number, use the command /list`);
-    if (gameNumber.length > 5) return ctx.reply("Could not read the number, please enter a valid value");
-    let isNumber = true;
-    for(let checkIndex = 0; checkIndex < gameNumber.length; checkIndex++){
-        if (!numbers.includes(gameNumber[checkIndex])){
-            isNumber = false;
-            break;
-        };
-    };
-    if (!isNumber) return ctx.reply("Please use only numbers to select a game");
-    const today = {
-        day: moment().format("DD"),
-        month: moment().format("MM"),
-        year: moment().format("YYYY")
-    };
-    const gameIndex = gameNumber - 1;
-    const gamesList = require(`../database/usersGames/${profileExists.telegramID}/${today.year}/${today.month}/${today.day}.json`);
-    if (gameNumber > gamesList.length) return ctx.reply ("No game found with this number")
-    const game = gamesList[gameIndex];
-    return ctx.reply(`${game.name}\nAchievements: ${game.achieved}/${game.achievements.length}`);
-});
-*/
 
 bot.command(["dev", "developer"], ctx => {
     return ctx.reply(`I was created by Sky Alarcon. Be sure to follow on Instagram @_skydoceu!\nAlso, take a peek at her Github profile: https://github.com/SkyAlarcon`)
 });
 
-const autoUpdate = require("./autoUpdate");
-
 bot.command("update", async ctx => {
     if (ctx.update.message.from.id != DEV_ID) return;
-    ctx.reply("Starting to update Database!")
+    ctx.reply("Starting to update Database!");
+    const yesterday = await script.getDayMonthYear(-1);
     const usersList = require("../database/users.json");
-    for (let userIndex = 0; userIndex < usersList.length; userIndex++){
-        await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${usersList[userIndex].steamID}`)
-        .then(async res => {
-            if (!res.data.response.players[0]) return ctx.reply(`No Steam user found for ID ${usersList[userIndex].telegramID}`);
-            ctx.replyWithMarkdownV2(`Profile being updated: *${res.data.response.players[0].personaname}*`);
-            await autoUpdate(usersList[userIndex].telegramID, usersList[userIndex].steamID);
-            await ctx.reply(`Updated ${userIndex+1} of ${usersList.length}!`);
-        })
-        .catch(err => {
-            console.log(err);
+    for(let userIndex = 0; userIndex < usersList.length; userIndex++){
+        const {steamID, telegramID} = usersList[userIndex];
+        console.log(telegramID)
+        const steamUsername = await script.getSteamUsername(steamID);
+        await ctx.reply(`Profile being updated: ${steamUsername}`);
+        const recentGamesList = await script.getRecentGames(steamID);
+        const recentGamesListPrepared = await script.prepareGameInfo(recentGamesList);
+        const allGamesList = await require(`../database/usersGames/${telegramID}/${yesterday.year}/${yesterday.month}/allGames.json`);
+        const gamesToBeUpdated = await script.compareUpdatesLists(recentGamesListPrepared, allGamesList);
+        const gamesInfoToSave = [];
+        for (let gameIndex = 0; gameIndex < gamesToBeUpdated.length; gameIndex++){
+            const { name, playtime, appid } = gamesToBeUpdated[gameIndex];
+            const gameDataToSave = {
+                name,
+                playtime,
+                appid
+            };
+            const achievements = await script.retrieveGameAchievements(steamID, appid);
+            console.log(achievements)
+            if (achievements) {  
+                const achieved = await script.countDoneAchievements(achievements);
+                gameDataToSave.achievements = achievements;
+                gameDataToSave.achieved = achieved;
+            }
+            gamesInfoToSave.push(gameDataToSave);
+        };
+        console.log(gamesInfoToSave)
+        const updatedAllGamesList = await script.updateAllGamesList(gamesInfoToSave, allGamesList);
+        const today = await script.getDayMonthYear();
+        let error = await fs.mkdirSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}`, {recursive: true}, err => {
+            if(err) {
+                console.log(err);
+                return err;
+            };
         });
+        if (error) return ctx.reply(`Telegram ID: ${telegramID} - mkdir`);
+        const gamesInfoToSaveStringfied = JSON.stringify(gamesInfoToSave, null, 1);
+        error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`, gamesInfoToSaveStringfied, err => {
+            if(err) return console.log(err);
+        });
+        if (error) return ctx.reply(`Telegram ID: ${telegramID} - create day.json`);
+        const updatedAllGamesListStringfied = JSON.stringify(updatedAllGamesList, null, 1);
+        error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, updatedAllGamesListStringfied, err => {
+            if(err) return console.log(err);
+        });
+        if (error) return ctx.reply(`Telegram ID: ${telegramID} - create allGames.json`);
     };
+    console.log("Finished")
     return ctx.reply("Auto updated Database!");
 });
 
+//TO BE REFACTORED
 bot.command("reformat", async ctx => {
     if (ctx.update.message.from.id != DEV_ID) return;
     const usersList = require("../database/users.json");
-    for(let userIndex = 1; userIndex < usersList.length; userIndex++){
+    for(let userIndex = 0; userIndex < usersList.length; userIndex++){
         const { telegramID } = usersList[userIndex];
         const yearsList = await fs.readdirSync(`./src/database/usersGames/${telegramID}`);
         for (let yearsIndex = 0; yearsIndex < yearsList.length; yearsIndex++){
@@ -220,7 +232,7 @@ bot.command("reformat", async ctx => {
             for(let monthsIndex = 0; monthsIndex < monthsList.length; monthsIndex++){
                 const daysList = await fs.readdirSync(`./src/database/usersGames/${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}`);
                 for (let daysIndex = 0; daysIndex < daysList.length - 1; daysIndex++){
-                    console.log(`Starting ${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}/${daysList[daysIndex]}`)
+                    console.log(`Starting ${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}/${daysList[daysIndex]}`);
                     const gamesInfo = await require(`../database/usersGames/${telegramID}/${yearsList[yearsIndex]}/${monthsList[monthsIndex]}/${daysList[daysIndex]}`);
                     const reformatedInfo = script.reformat(gamesInfo);
                     const gamesInfoString = JSON.stringify(reformatedInfo, null, 1);
@@ -237,6 +249,51 @@ bot.command("reformat", async ctx => {
             };
         };
     };
+});
+
+bot.command("reformat2", async ctx => {
+    if (ctx.update.message.from.id != DEV_ID) return;
+    const usersList = require("../database/users.json");
+    for(let userIndex = 0; userIndex < usersList.length; userIndex++){
+        const { telegramID } = usersList[userIndex];
+        const firstDay = script.getFirstDay(telegramID);
+        const daysCounter = script.daysTotalCount(firstDay);
+        const firstDate = script.getDayMonthYear(daysCounter);
+        const firstGamesList = await require(`../database/usersGames/${telegramID}/${firstDate.year}/${firstDate.month}/${firstDate.day}.json`);
+        const firstGamesListStringfied = JSON.stringify(firstGamesList, null, 1);
+        let error = fs.writeFileSync(`./src/database/usersGames/${telegramID}/${firstDate.year}/${firstDate.month}/allGames.json`, firstGamesListStringfied, err => {
+            if (err){
+                bot.telegram.sendMessage(DEV_ID, "Deu ruim");
+                return err;
+            };
+        });
+        if (error) return ctx.reply(`Telegram ID: ${telegramID}`);       
+        for (let dayCount = daysCounter + 1; dayCount <= 0 ; dayCount++){
+            const today = script.getDayMonthYear(dayCount);
+            const todayGamesList = await require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`);
+            const yesterday = script.getDayMonthYear(dayCount - 1);
+            const allGames = await require(`../database/usersGames/${telegramID}/${yesterday.year}/${yesterday.month}/allGames.json`);
+            const toUpdateGamesList = script.compareUpdatesLists (todayGamesList, allGames);
+            const toUpdateGamesListStringfied = JSON.stringify(toUpdateGamesList, null, 1);
+            error = fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`, toUpdateGamesListStringfied, err => {
+                if (err){
+                    bot.telegram.sendMessage(DEV_ID, `Date: ${today.day}/${today.month}/${today.year} - DB\nTelegram ID : ${telegramID}`);
+                    return err;
+                };
+            if (error) return;
+            });
+            const updatedAllGames = await script.updateAllGamesList(toUpdateGamesList, allGames);
+            const updatedAllGamesStringfied = JSON.stringify(updatedAllGames, null, 1);
+            error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, updatedAllGamesStringfied, err => {
+                if (err){
+                    bot.telegram.sendMessage(DEV_ID, `Date: ${today.day}/${today.month}/${today.year} - allGames\nTelegram ID : ${telegramID}`);
+                    return err;
+                };
+            if (error) return;
+            });
+        };
+    };
+    ctx.reply("Reformat2 done")
 });
 
 /*
@@ -274,27 +331,6 @@ bot.command("recall", async ctx => {
 
     //bot.telegram.sendMessage(TELEGRAM_ID, "Deu bom")
 });
-*/
-/*
-const STEAMID = process.env.STEAM_ID
-bot.hears ("test", async ctx => {
-    console.log("1")
-    await axios.get (`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAMKEY}&steamid=${STEAMID}&format=json`)
-        .then(async res => {
-            await console.log(res.data.response.games[0])
-        })
-        .catch( err => {
-            console.log(err)
-        });
-        console.log("2")
-    await axios.get (`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${STEAMID}&include_appinfo=true&format=json`)
-        .then( async res => {
-            await console.log(res.data.response.games[0])
-        })
-        .catch( err => {
-            console.log(err)
-        })
-})
 */
 
 bot.launch();

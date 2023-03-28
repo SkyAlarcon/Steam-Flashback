@@ -188,7 +188,7 @@ bot.command(["dev", "developer"], ctx => {
 
 const autoUpdate = require("./autoUpdate");
 const TELEGRAM_ID = process.env.TELEGRAM_ID;
-
+/*
 bot.command("update", async ctx => {
     if (ctx.update.message.from.id != TELEGRAM_ID) return;
     ctx.reply("Starting to update Database!")
@@ -207,7 +207,7 @@ bot.command("update", async ctx => {
     };
     return ctx.reply("Auto updated Database!");
 });
-
+*/
 bot.command("reformat", async ctx => {
     if (ctx.update.message.from.id != TELEGRAM_ID) return;
     const usersList = require("../database/users.json");

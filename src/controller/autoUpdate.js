@@ -8,28 +8,6 @@ const STEAMKEY = process.env.STEAMKEY;
 
 const autoUpdate = async (telegramID, steamID) => {
 
-    /*
-    const yesterday = script.dayMonthYear(-1);
-    const yesterdayList = require(`../database/usersGames/${telegramID}/${yesterday.year}/${yesterday.month}/list.json`);
-    const gamesRecentlyPlayed = axios.get(`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&format=json`)
-                            .then(async res => {
-                                const allRecentGames = res.data.response.games
-                                const listRecentGames = [];
-                                for (let gameIndex = 0; gameIndex < allGames.length; gameIndex++){
-                                    const gameInfo = {
-                                        name: allRecentGames.name,
-                                        appid: allRecentGames.appid,
-                                        playtime: allRecentGames.playtime_forever
-                                    };
-                                    listRecentGames.push(gameInfo)
-                                };
-                                return listRecentGames
-                              })
-                            .catch(err => {});
-    const toUpdateList = script.createGamesList(yesterdayList, gamesRecentlyPlayed);
-
-    */
-
     const updatedGames = {}
     updatedGames.library = [];
     await axios.get (`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&include_appinfo=true&format=json`)
@@ -57,7 +35,7 @@ const autoUpdate = async (telegramID, steamID) => {
         await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${updatedGames.library[appidIndex].appid}&key=${STEAMKEY}&steamid=${steamID}`)
         .then(async res => {
             updatedGames.gamesInfo.push({
-                title: res.data.playerstats.gameName,
+                name: res.data.playerstats.gameName,
                 appid: updatedGames.library[appidIndex].appid,
                 achievements: res.data.playerstats.achievements,
                 playtime: updatedGames.library[appidIndex].playtime
@@ -81,8 +59,7 @@ const autoUpdate = async (telegramID, steamID) => {
     await fs.mkdirSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}`, {recursive: true}, err => {if(err) return console.log(err);});
     const updatedGamesString = JSON.stringify(updatedGames.gamesInfo, null, 1);
     await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`, updatedGamesString, err => {if(err) return console.log(err)});
-    const updatedGamesListString = JSON.stringify(updatedGames.list, null, 1);
-    await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, updatedGamesListString, err => {
+    await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, updatedGamesString, err => {
         if (err){
             ctx.reply("Please contact the dev for support - Error 002.1\nUse /dev for contact info.");
             return err

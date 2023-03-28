@@ -1,5 +1,6 @@
 const axios = require("axios");
-const moment = require("moment")
+const moment = require("moment");
+const fs = require("fs");
 
 const STEAMKEY = process.env.STEAMKEY
 
@@ -8,48 +9,6 @@ const wait = (miliseconds = 42000) => {
         return 1
     }, miliseconds);
 };
-const prepareGamesInfo = async (steamID, gamesList) => {
-    const gamesInfo = []
-    for (let gameIndex = 0; gameIndex < gamesList.length; gameIndex++) {
-        await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${gamesList[gameIndex].appid}&key=${STEAMKEY}&steamid=${steamID}`)
-            .then(async res => {
-                const gameRawInfo = res.data.playerstats
-                gamesInfo.push({
-                    title: gameRawInfo.gameName,
-                    appid: gamesList[gameIndex].appid,
-                    achievements: gameRawInfo.achievements,
-                    playtime: gamesList.playtime
-                });
-            })
-            .catch(err => {})
-    };
-    return gamesInfo;
-};
-
-const compareLists = (yesterdayList = [], recentlyPlayedList) => {
-    if (yesterdayList.length == 0 || recentlyPlayedList.length == 0) return recentlyPlayedList;
-    const toUpdateList = [];
-    for (let gameIndex = 0; gameIndex < recentlyPlayedList.length; recentlyPlayedList++){
-        const gameCheck = yesterdayList.find(game => {
-            if (recentlyPlayedList.playtime != game.playtime){
-                return
-            }
-        })
-        if (!gameCheck) continue;
-        const gameToUpdate = {
-            name: recentlyPlayedList[gameIndex].name,
-            appid: recentlyPlayedList[gameIndex].appid,
-            playtime: recentlyPlayedList[gameIndex].playtime
-        }
-        toUpdateList.push(gameToUpdate);
-    };
-    return toUpdateList;
-}
-
-
-
-
-
 
 const reformat = (gamesInfo) => {
     const gamesInfoFormated =[];
@@ -58,9 +17,9 @@ const reformat = (gamesInfo) => {
         const newFormat = {
             "name": gamesInfo[index].title || gamesInfo[index].name,
             appid,
-            achievements,
+            playtime,
             achieved,
-            playtime
+            achievements
         }
         gamesInfoFormated.push(newFormat);
     };
@@ -72,8 +31,8 @@ const getDayMonthYear = (daysFromToday = 0) => {
         day: moment().add((daysFromToday), "days").format("DD"),
         month: moment().add((daysFromToday), "days").format("MM"),
         year: moment().add((daysFromToday), "days").format("YYYY")
-    }
-    return date
+    };
+    return date;
 };
 
 const findUser = (telegramID) => {
@@ -83,13 +42,18 @@ const findUser = (telegramID) => {
 };
 
 const validSteamID = (steamID) => {
-    const numbers = "0123456789"
-    if (steamID.length > 18) return false
-    for (let index = 0; index < steamID.length; index++){
-        if (!numbers.includes(steamID[index])) return false;
-    };
-    return true
+    if (steamID.length > 18) return false;
+    const onlyNumbers = verifyOnlyNumbers(steamID);
+    return onlyNumbers;
 };
+
+const verifyOnlyNumbers = (str) => {
+    const numbers = "0123456789"
+    for (let index = 0; index < str.length; index++){
+        if (!numbers.includes(str[index])) return false;
+    };
+    return true;
+}
 
 const getSteamUsername = async (steamID) => {
     const profilePersona = await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${steamID}`)
@@ -118,33 +82,35 @@ const getAllGames = async (steamID) => {
     return gamesList;
 };
 
-const removeGameNoPlaytime = (gamesList) => {
+const removeGameNoPlaytime = (gamesList = []) => {
     const playedGames = [];
     for (let index = 0; index < gamesList.length; index++){
         if (gamesList[index].playtime_forever < 1) continue;
-        const newGame = {
-            "name": gamesList[index].name,
-            "appid": gamesList[index].appid,
-            "playtime": gamesList[index].playtime_forever
-        };
-        playedGames.push(newGame);
+        playedGames.push(gamesList[index]);
     };
-    return playedGames;
+    const playedGamesPreparedInfo = prepareGameInfo(playedGames);
+    return playedGamesPreparedInfo;
 };
 
-const createGamesList = async (allGames) => {
-    let gameList = "";
-    for (let gameIndex = 0; gameIndex < allGames.length; gameIndex++){
-        gameList += `${index + 1}. ${allGames[index].name}`
+const prepareGameInfo = (gameList = []) => {
+    const gameInfoPrepared = [];
+    for (let index = 0; index < gameList.length; index++){
+        if (gameList[index].playtime_forever < 1) continue;
+        const newGame = {
+            "name": gameList[index].name,
+            "appid": gameList[index].appid,
+            "playtime": gameList[index].playtime_forever
+        };
+        gameInfoPrepared.push(newGame);
     };
-    gameList.trim();
-    return gameList;
-};
+    return gameInfoPrepared;
+}
 
 const retrieveGameAchievements = async (steamID, appid) => {
     const gameAchievements = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appid}&key=${STEAMKEY}&steamid=${steamID}`)
         .then(async res => {
             const achievementsData = await res.data.playerstats.achievements;
+            console.log(achievementsData)
             if (!achievementsData) return false;
             return achievementsData;
         })
@@ -162,11 +128,111 @@ const countDoneAchievements = (achievsList) => {
     return achievsDone;
 };
 
+const getFirstDay = (telegramID) => {
+    const years = fs.readdirSync(`./src/database/usersGames/${telegramID}`);
+    const months = fs.readdirSync(`./src/database/usersGames/${telegramID}/${years[0]}`);
+    const days = fs.readdirSync(`./src/database/usersGames/${telegramID}/${years[0]}/${months[0]}`);
+    const firstDay = days[0].slice(0, 2) + months[0] + years[0];
+    return firstDay;
+};
+
+const daysTotalCount = (date) => {
+    const today = moment().format("DDMMYYYY")
+    const days = moment(date, "DDMMYYYY").diff(moment(today, "DDMMYYYY"), "days");
+    return days;
+};
+
+const compareUpdatesLists = (newList = [], oldList) => {
+    const playedGames = [];
+    for (let newIndex = 0; newIndex < newList.length; newIndex++){
+        const newName = newList[newIndex].name;
+        const newPlaytime = newList[newIndex].playtime;
+        for (let oldIndex = 0; oldIndex < oldList.length; oldIndex++){
+            const oldName = oldList[oldIndex].name;
+            const oldPlaytime = oldList[oldIndex].playtime;
+            if (newName != oldName) continue;
+            if (newPlaytime == oldPlaytime) {break;}
+            else {
+                playedGames.push(newList[newIndex]);
+                break;
+            };
+        };
+    };
+    return playedGames;
+};
+
+const updateAllGamesList = (toUpdate, allGames) => {
+    const allGamesUpdated = allGames;
+    for (let updIndex = 0; updIndex < toUpdate.length; updIndex++){
+        const { name } = toUpdate[updIndex];
+        for (let gameIndex = 0; gameIndex < allGamesUpdated.length; gameIndex++){
+            if (name == allGamesUpdated[gameIndex].name) {
+                allGamesUpdated[gameIndex].playtime = toUpdate[updIndex].playtime;
+                allGamesUpdated[gameIndex].achievements = toUpdate[updIndex].achievements;
+                allGamesUpdated[gameIndex].achieved = toUpdate[updIndex].achieved;
+                break;
+            };
+        };
+    };
+    return allGamesUpdated;
+};
+
+const getRecentGames = async (steamID) => {
+    const gamesList = await axios.get(`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAMKEY}&steamid=${steamID}&format=json`)
+        .then(async res => {
+            const gamesList = await res.data.response.games;
+            return gamesList
+        })
+        .catch(err => {
+            console.log(err)
+            return false
+        });
+    return gamesList;
+};
+
+const reformat2 = (yesterday, today) => {
+    const newList = [];
+
+    for (let tIndex = 0; tIndex < today.length; tIndex++) {
+        const game = yesterday.find(yGame => {
+            if (yGame.name == today[tIndex].name) return yGame;
+        });
+        if (!game){
+            newList.push(today[tIndex]);
+            continue;
+        };
+        if (game.playtime != today[tIndex].playtime){
+            newList.push(today[tIndex]);
+        }
+    };
+
+    return newList
+};
+
+const createGameListForUser = (gamesList = []) => {
+    if (gamesList == []) return "Sorry, you don't have any games saved :/\nPlease check you profile and set it to public so we can save your games on the next update <3"
+    let message = "";
+    for (let index = 0; index < gamesList.length; index++){
+        const newGame = `${index + 1}. ${gamesList[index].name}\n`;
+        message += newGame;
+    };
+    message.trim();
+    return message;
+};
+
+const convertMinutesToHours = (totalMinutes) => {
+    const minutesInNumber = totalMinutes
+    const time = {
+        hours: Math.floor(minutesInNumber / 60),
+        minutes: minutesInNumber % 60
+    };
+    return time;    
+};
+
 module.exports = {
     wait,
     reformat,
-    prepareGamesInfo,
-    compareLists,
+    reformat2,
 
 
     getDayMonthYear,
@@ -175,7 +241,15 @@ module.exports = {
     getSteamUsername,
     getAllGames,
     removeGameNoPlaytime,
-    createGamesList,
     retrieveGameAchievements,
-    countDoneAchievements
+    countDoneAchievements,
+    getFirstDay,
+    daysTotalCount,
+    compareUpdatesLists,
+    updateAllGamesList,
+    getRecentGames,
+    verifyOnlyNumbers,
+    createGameListForUser,
+    convertMinutesToHours,
+    prepareGameInfo
 };
