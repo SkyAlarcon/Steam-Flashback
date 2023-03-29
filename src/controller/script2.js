@@ -229,6 +229,13 @@ const convertMinutesToHours = (totalMinutes) => {
     return time;    
 };
 
+const removeUser = (telegramID) => {
+    const usersList = require("../database/users.json");
+    const userIndex = usersList.findIndex((user, index) => {if (telegramID == user.telegramID) return index});
+    usersList.splice(userIndex, 1);
+    return usersList;
+};
+
 module.exports = {
     wait,
     reformat,
@@ -251,5 +258,6 @@ module.exports = {
     verifyOnlyNumbers,
     createGameListForUser,
     convertMinutesToHours,
-    prepareGameInfo
+    prepareGameInfo,
+    removeUser
 };
