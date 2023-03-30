@@ -21,9 +21,9 @@ The `Steam Flashback` bot is a *Telegram bot* created to record and analyze all 
 ## Why the bot was created
 The `Steam Flashback` bot idea came to me at the end of 2022, when *Steam* released the **Steam Replay** feature and I got some quite strange statistics:
 
-<h1 align="center">
+<h3 align="center">
     <img src="./src/assets/steam-replay.png" alt="Steam Replay statistics">
-</h1>
+</h3>
 
 As you can see, I "played" for 78% of the time *Cookie Clicker*, an ***idle game***. This one game that I kept open while I work simply broke my `Steam Replay` number and I was pretty bummed about it. Given that, I realized that it would happen *again* in 2023, since I'm trying to 100% the game and I'm at the point of just letting the own game do it's things for a few days and check every now and then.
 
