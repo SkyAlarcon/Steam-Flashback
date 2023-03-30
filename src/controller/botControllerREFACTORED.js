@@ -371,7 +371,6 @@ bot.command("update", async ctx => {
                 appid
             };
             const achievements = await script.retrieveGameAchievements(steamID, appid);
-            console.log(achievements)
             if (achievements) {
                 const achieved = await script.countDoneAchievements(achievements);
                 gameDataToSave.achievements = achievements;
