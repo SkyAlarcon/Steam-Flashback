@@ -9,11 +9,11 @@ This bot was created to have an in-depth analisys of **all games** you played du
 
 ## Index
 
-- [What is the "Steam Flashback" bot?]()
-- [Why the bot was created]()
-- [How the bot was created]()
-- [How the bot works]()
-- [Meet the developer ☁]() ~~(She is pretty cool)~~
+- [What is the "Steam Flashback" bot?](#what-is-the-steam-flashback-bot)
+- [Why the bot was created](#why-the-bot-was-created)
+- [How the bot was created](#how-the-bot-was-created)
+- [How the bot works](#how-the-bot-works)
+- [Meet the developer ☁](#meet-the-developer) <sub>(She is pretty cool)</sub>
 
 ## What is the "Steam Flashback" bot?
 The `Steam Flashback` bot is a *Telegram bot* created to record and analyze all gaming data throughout the year and create a better analysis of all the progress done on all games played. The main objective is to create some kind of customization for the analysis so new graphs and percentages can be viewed and other game's data can be compared.
