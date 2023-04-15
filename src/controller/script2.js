@@ -110,7 +110,6 @@ const retrieveGameAchievements = async (steamID, appid) => {
     const gameAchievements = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appid}&key=${STEAMKEY}&steamid=${steamID}`)
         .then(async res => {
             const achievementsData = await res.data.playerstats.achievements;
-            console.log(achievementsData)
             if (!achievementsData) return false;
             return achievementsData;
         })

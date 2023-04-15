@@ -19,15 +19,12 @@ bot.help(ctx => {
     return ctx.reply("Here are the commands that I know:\n/create - Create a profile for you Steam Flashback\n/update - Updates Steam ID\n/check - Retrieves Steam ID and Name from DB\n/delete - Deletes your Flashback Account\n/list - list all games on your library\n/game [number of the game] - retrieves game's info (Be sure to write it corrrectly)\n/flashback - W.I.P\n/dev - Dev's info");
 });
 
-
 bot.command("create", async ctx => {
     const telegramID = ctx.from.id.toString();
     const userRegistered = script.findUser(telegramID);
     if (userRegistered) return ctx.reply(`A Flashback account is already linked to this Telegram account!\nPlease use /check to verify your information ^^`);
     const steamID = ctx.update.message.text.trim().slice(7).trim().toString();
-    if (!steamID) {
-        return ctx.reply(`To create you profile, send "/create [SteamID]".\nIf you don't know your SteamID, access this link https://steamid.xyz/ \nCopy and paste you Steam Profile URL\nThe number under Steam64 ID is the number we're looking for!\nRemember to set your profile games and achievements to "Public"\\!`);
-    };
+    if (!steamID) return ctx.reply(`To create you profile, send "/create [SteamID]".\nIf you don't know your SteamID, access this link https://steamid.xyz/ \nCopy and paste you Steam Profile URL\nThe number under Steam64 ID is the number we're looking for!\nRemember to set your profile games and achievements to "Public"\\!`);
     const validSteamID = script.validSteamID(steamID);
     if (!validSteamID) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help");
     const profileUsername = await script.getSteamUsername(steamID);
@@ -102,7 +99,6 @@ bot.command("create", async ctx => {
     return ctx.replyWithMarkdownV2(`We saved ${allGamesData.length} games info\\!\nFeel free to play and we will take care of the rest\\!`);
 });
 
-
 bot.command("check", async ctx => {
     const telegramID = ctx.from.id;
     const userRegistered = script.findUser(telegramID);
@@ -165,11 +161,9 @@ bot.command("game", async ctx => {
     return ctx.reply(`${message}`);
 });
 
-
 bot.command(["dev", "developer"], ctx => {
     return ctx.reply(`I was created by Sky Alarcon. Be sure to follow on Instagram @_skydoceu!\nAlso, take a peek at her Github profile: https://github.com/SkyAlarcon`)
 });
-
 
 const months = {
     "jan": "01",
@@ -351,13 +345,13 @@ bot.command("reformat2", async ctx => {
 
 bot.command("update", async ctx => {
     if (ctx.update.message.from.id != DEV_ID) return;
-    ctx.reply("Starting to update Database!");
+    ctx.reply("Starting to update Database!", {disable_notification: true});
     const yesterday = await script.getDayMonthYear(-1);
     const usersList = require("../database/users.json");
     for (let userIndex = 0; userIndex < usersList.length; userIndex++) {
         const { steamID, telegramID } = usersList[userIndex];
         const steamUsername = await script.getSteamUsername(steamID);
-        await ctx.reply(`Profile being updated: ${steamUsername}`);
+        await ctx.reply(`Profile being updated: ${steamUsername}`, {disable_notification: true});
         const recentGamesList = await script.getRecentGames(steamID);
         const recentGamesListPrepared = await script.prepareGameInfo(recentGamesList);
         const allGamesList = await require(`../database/usersGames/${telegramID}/${yesterday.year}/${yesterday.month}/allGames.json`);
@@ -380,26 +374,31 @@ bot.command("update", async ctx => {
         };
         const updatedAllGamesList = await script.updateAllGamesList(gamesInfoToSave, allGamesList);
         const today = await script.getDayMonthYear();
-        let error = await fs.mkdirSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}`, { recursive: true }, err => {
+        await fs.mkdirSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}`, { recursive: true }, err => {
+            if (err) {
+                console.log(err);
+                return ctx.reply(`Telegram ID: ${telegramID} - mkdir`);
+            };
+            return false
+        });
+        const gamesInfoToSaveStringfied = JSON.stringify(gamesInfoToSave, null, 1);
+        error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`, gamesInfoToSaveStringfied, err => {
+            if (err) {
+                console.log(err);
+                return ctx.reply(`Telegram ID: ${telegramID} - create day.json`);
+            };
+        });
+        const updatedAllGamesListStringfied = JSON.stringify(updatedAllGamesList, null, 1);
+        error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, updatedAllGamesListStringfied, err => {
             if (err) {
                 console.log(err);
                 return err;
             };
         });
-        if (error) return ctx.reply(`Telegram ID: ${telegramID} - mkdir`);
-        const gamesInfoToSaveStringfied = JSON.stringify(gamesInfoToSave, null, 1);
-        error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/${today.day}.json`, gamesInfoToSaveStringfied, err => {
-            if (err) return console.log(err);
-        });
-        if (error) return ctx.reply(`Telegram ID: ${telegramID} - create day.json`);
-        const updatedAllGamesListStringfied = JSON.stringify(updatedAllGamesList, null, 1);
-        error = await fs.writeFileSync(`./src/database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`, updatedAllGamesListStringfied, err => {
-            if (err) return console.log(err);
-        });
-        if (error) return ctx.reply(`Telegram ID: ${telegramID} - create allGames.json`);
+        if (error) return ctx.reply(`Telegram ID: ${telegramID} - create allGames.json`, {disable_notification: true});
     };
-    console.log("Finished")
-    return ctx.reply("Auto updated Database!");
+    console.log(`Finished`)
+    return ctx.reply("Auto updated Database!", {disable_notification: true});
 });
 
 bot.command("DEVrecall", async ctx => {
@@ -415,7 +414,7 @@ bot.command("DEVrecall", async ctx => {
     const monthIsNumbers = script.verifyOnlyNumbers(monthYear[0]);
     if (!monthIsNumbers) date.month = months[date.month];
     if (!date.month || !date.year) return ctx.reply("Please use the format: /recall [month] [year]");
-    for (let userIndex = 0; userIndex < 1 /*usersList.length*/; userIndex++){
+    for (let userIndex = 0; userIndex < usersList.length; userIndex++){
         const { telegramID } = usersList[userIndex];
         const yearsList = fs.readdirSync(`./src/database/usersGames/${telegramID}`, err => {
             if (err) {
@@ -464,7 +463,7 @@ bot.command("DEVrecall", async ctx => {
                 };
             };
         };
-        let message = `This is what you played in ${date.month}/${date.year}`;
+        let message = `This is what you played in ${date.month}/${date.year}\nTo see other months use the command /recall\n(This bot is still in development, so feel free to send a message to the /dev)\n`;
         for (let recallIndex = 0; recallIndex < recallInfo.length; recallIndex++) {
             const monthPlaytime = recallInfo[recallIndex].playtimeUpdated - recallInfo[recallIndex].playtime;
             if (monthPlaytime == 0) continue;
@@ -473,9 +472,17 @@ bot.command("DEVrecall", async ctx => {
             message += `\n${recallInfo[recallIndex].name}\nYou played for ${monthPlaytimeConverted.hours} hours and ${monthPlaytimeConverted.minutes} minutes\nYou also completed ${achievementsDone} new achievements!\n`;
         };
         message.trim();
-        bot.telegram.sendMessage(telegramID, `${message}`);
+        bot.telegram.sendMessage(telegramID, `${message}`, {disable_notification: true});
     };
 });
+
+bot.command("test", async ctx => {
+    if (ctx.update.message.from.id != DEV_ID) return;
+    console.log(ctx)
+    setTimeout(() => {
+        bot.telegram.sendMessage(DEV_ID, "silent", {disable_notification: true})
+    }, 60000);
+})
 
 bot.launch();
 

@@ -42,13 +42,15 @@ For now, the main libraries/dependencies I'm using are:
 
 ## How the bot works
 
-The `Steam Flashback` bot has an integration with the [Steam Web API](https://developer.valvesoftware.com/wiki/Steam_Web_API) and, through it, I can send 10k requests per day. At this moment, we have, for users, *five* different methods, all of them controlled via Telegram:
+The `Steam Flashback` bot has an integration with the [Steam Web API](https://developer.valvesoftware.com/wiki/Steam_Web_API) and, through it, I can send 10k requests per day. At this moment, we have, for users, *six* different methods, all of them controlled via Telegram:
 
- > /create - Create an `Steam Flashback` account linking you Telegram ID to you Steam ID
+ > /create - Create an `Steam Flashback` account linking your Telegram ID to your Steam ID
+ 
+ > /check - Checks for how long you have been registered and how many games are being monitored
 
- > /check - Checks for how long yopu have been registered and how many games are being monitored
+ > /game - Gives you a numbered list of *all* games being monitored and, if called *`/game [number]`* shows playtime and achievements (if applicable) of the game selected
 
- > /game - Gives you the numbered list of *all* games being monitored and, if called *`/game [number]`* shows playtime and achievements (if applicable) of the game selected
+ > /recall - Gives a monthly throwback of how many hours you played and how many achievements you completed
 
  > /delete - Completely erases all saved info linked to the user
 
