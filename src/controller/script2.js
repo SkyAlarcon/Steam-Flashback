@@ -1,6 +1,7 @@
 const axios = require("axios");
 const moment = require("moment");
 const fs = require("fs");
+const { exec } = require("child_process")
 
 const STEAMKEY = process.env.STEAMKEY
 
@@ -63,7 +64,7 @@ const getSteamUsername = async (steamID) => {
             return profileInfo
         })
         .catch(err => {
-            console.log(err)
+            //console.log(err)
             return false
         });
     return profilePersona;
@@ -146,7 +147,8 @@ const compareUpdatesLists = (newList = [], oldList) => {
     for (let newIndex = 0; newIndex < newList.length; newIndex++){
         const newName = newList[newIndex].name;
         const newPlaytime = newList[newIndex].playtime;
-        for (let oldIndex = 0; oldIndex < oldList.length; oldIndex++){
+        let oldIndex
+        for (oldIndex = 0; oldIndex < oldList.length; oldIndex++){
             const oldName = oldList[oldIndex].name;
             const oldPlaytime = oldList[oldIndex].playtime;
             if (newName != oldName) continue;
@@ -156,6 +158,9 @@ const compareUpdatesLists = (newList = [], oldList) => {
                 break;
             };
         };
+        if (oldIndex == oldList.length){
+            playedGames.push(newList[newIndex]);
+        };
     };
     return playedGames;
 };
@@ -164,7 +169,8 @@ const updateAllGamesList = (toUpdate, allGames) => {
     const allGamesUpdated = allGames;
     for (let updIndex = 0; updIndex < toUpdate.length; updIndex++){
         const { name } = toUpdate[updIndex];
-        for (let gameIndex = 0; gameIndex < allGamesUpdated.length; gameIndex++){
+        let gameIndex
+        for (gameIndex = 0; gameIndex < allGamesUpdated.length; gameIndex++){
             if (name == allGamesUpdated[gameIndex].name) {
                 allGamesUpdated[gameIndex].playtime = toUpdate[updIndex].playtime;
                 allGamesUpdated[gameIndex].achievements = toUpdate[updIndex].achievements;
@@ -172,6 +178,7 @@ const updateAllGamesList = (toUpdate, allGames) => {
                 break;
             };
         };
+        if (gameIndex == allGamesUpdated.length) allGamesUpdated.push(toUpdate[updIndex]);
     };
     return allGamesUpdated;
 };
@@ -210,13 +217,22 @@ const reformat2 = (yesterday, today) => {
 
 const createGameListForUser = (gamesList = []) => {
     if (gamesList == []) return "Sorry, you don't have any games saved :/\nPlease check you profile and set it to public so we can save your games on the next update <3"
-    let message = "";
-    for (let index = 0; index < gamesList.length; index++){
-        const newGame = `${index + 1}. ${gamesList[index].name}\n`;
-        message += newGame;
+    let index = 0;
+    let messageCounter = 1;
+    const gamesPerMessage = 100
+    const messageBlocks = []
+    while (index < gamesList.length) {
+        let message = "";
+        while (index < gamesList.length && (index < messageCounter * gamesPerMessage)) {
+            const game = `${index + 1}. ${gamesList[index].name}\n`;
+            message += game;
+            index++;
+        };
+        message.trim();
+        messageBlocks.push(message);
+        messageCounter++;
     };
-    message.trim();
-    return message;
+    return messageBlocks;
 };
 
 const convertMinutesToHours = (totalMinutes) => {
@@ -234,6 +250,27 @@ const removeUser = (telegramID) => {
     usersList.splice(userIndex, 1);
     return usersList;
 };
+
+const getGameBanner = async appid => {
+    const imgUrl = await axios.get(`https://store.steampowered.com/api/appdetails?appids=${appid}`)
+        .then( res => {
+            if (!res.data[appid].data) return false;
+            const appBannerUrl = res.data[appid].data.header_image;
+            return appBannerUrl;
+        })
+        .catch()
+    return imgUrl
+}
+
+const getTime = () => {
+    const time = moment().format("LTS");
+    return time;
+}
+
+const turnOffSystem = (seconds = 1) => {
+    exec(`shutdown /s /t ${seconds}` )
+}
+
 
 module.exports = {
     wait,
@@ -258,5 +295,8 @@ module.exports = {
     createGameListForUser,
     convertMinutesToHours,
     prepareGameInfo,
-    removeUser
+    removeUser,
+    getGameBanner,
+    getTime,
+    turnOffSystem
 };

@@ -6,10 +6,23 @@ const script = require("./src/controller/script2")
 const STEAMKEY = process.env.STEAMKEY
 const STEAMID = process.env.STEAM_ID
 
-const appid= 241930
-const resp = script.getRecentGames(STEAMID)
+const steam = "76561198081623900"
 
-console.log(resp)
+const appid = 504230
+const main = async() => {
+  const gamesList = await axios.get(`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAMKEY}&steamid=${steam}&format=json`)
+      .then(async res => {
+          const gamesList = await res.data.response.games;
+          return gamesList
+      })
+      .catch(err => {
+          console.log(err)
+          return false
+      });
+  console.log(gamesList)
+}
+main()
+
 
 /*
 const a = "22032023";

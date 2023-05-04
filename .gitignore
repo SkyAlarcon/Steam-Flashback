@@ -4,4 +4,5 @@ NukeTown.js
 src/database/usersGames
 src/database/users.json
 src/backup
-tests.hs
+tests.js
+src/controller/src
