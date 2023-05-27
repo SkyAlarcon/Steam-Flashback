@@ -36,8 +36,7 @@ const getDayMonthYear = (daysFromToday = 0) => {
     return date;
 };
 
-const findUser = (telegramID) => {
-    const usersList = require("../database/users.json");
+const findUser = (telegramID, usersList) => {
     const user = usersList.find(user => { if (user.telegramID == telegramID) return user})
     return user;
 };
@@ -54,7 +53,7 @@ const verifyOnlyNumbers = (str) => {
         if (!numbers.includes(str[index])) return false;
     };
     return true;
-}
+};
 
 const getSteamUsername = async (steamID) => {
     const profilePersona = await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAMKEY}&steamids=${steamID}`)
@@ -105,7 +104,7 @@ const prepareGameInfo = (gameList = []) => {
         gameInfoPrepared.push(newGame);
     };
     return gameInfoPrepared;
-}
+};
 
 const retrieveGameAchievements = async (steamID, appid) => {
     const gameAchievements = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appid}&key=${STEAMKEY}&steamid=${steamID}`)
@@ -118,7 +117,7 @@ const retrieveGameAchievements = async (steamID, appid) => {
             return false;
         });
     return gameAchievements;
-}
+};
 
 const countDoneAchievements = (achievsList) => {
     let achievsDone = 0;
@@ -139,7 +138,7 @@ const getFirstDay = (telegramID) => {
 const daysTotalCount = (date) => {
     const today = moment().format("DDMMYYYY")
     const days = moment(date, "DDMMYYYY").diff(moment(today, "DDMMYYYY"), "days");
-    return days;
+    return days;    
 };
 
 const compareUpdatesLists = (newList = [], oldList) => {
@@ -244,8 +243,7 @@ const convertMinutesToHours = (totalMinutes) => {
     return time;    
 };
 
-const removeUser = (telegramID) => {
-    const usersList = require("../database/users.json");
+const removeUser = (telegramID, usersList) => {
     const userIndex = usersList.findIndex((user, index) => {if (telegramID == user.telegramID) return index});
     usersList.splice(userIndex, 1);
     return usersList;
@@ -260,17 +258,24 @@ const getGameBanner = async appid => {
         })
         .catch()
     return imgUrl
-}
+};
 
 const getTime = () => {
     const time = moment().format("LTS");
     return time;
-}
+};
 
 const turnOffSystem = (seconds = 1) => {
     exec(`shutdown /s /t ${seconds}` )
-}
+};
 
+const filterObjectList = (list = [], key, value) => {
+    const filteredList = list.map(item => {
+        if (item[key] == value) return item;
+    });
+    if (filteredList[0] === undefined) return []
+    return filteredList;
+};
 
 module.exports = {
     wait,
@@ -298,5 +303,6 @@ module.exports = {
     removeUser,
     getGameBanner,
     getTime,
-    turnOffSystem
+    turnOffSystem,
+    filterObjectList
 };

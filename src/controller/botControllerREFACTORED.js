@@ -3,12 +3,11 @@ const DEV_ID = process.env.DEV_ID;
 
 const moment = require("moment")
 const fs = require("fs");
-const { exec } = require("child_process")
 
 const { Telegraf } = require("telegraf");
 const bot = new Telegraf(TELEGRAM_KEY, { handlerTimeout: 300000 });
 
-const script = require("./script2")
+const script = require("./script2");
 
 bot.telegram.sendMessage(DEV_ID, "Up and running!", {disable_notification: true})
 
@@ -22,9 +21,9 @@ bot.help(ctx => {
 
 bot.command("create", async ctx => {
     const telegramID = ctx.from.id.toString();
-    const userRegistered = script.findUser(telegramID);
-    if (userRegistered) return ctx.reply(`A Flashback account is already linked to this Telegram account!\nPlease use /check to verify your information ^^`);
     const usersList = require("../database/users.json");
+    const userRegistered = script.findUser(telegramID, usersList);
+    if (userRegistered) return ctx.reply(`A Flashback account is already linked to this Telegram account!\nPlease use /check to verify your information ^^`);
     if (usersList.length >= 15) return ctx.reply("Sorry, but we reached the maximum number of users for now! Be sure to stay tuned on the dev social!\nUse /dev for more info")
     const steamID = ctx.update.message.text.trim().slice(7).trim().toString();
     if (!steamID) return ctx.reply(`To create you profile, send "/create [SteamID]".\nLike this: /create 000000000\nIf you don't know your SteamID, access this link https://steamid.xyz/ \nCopy and paste you Steam Profile URL\nThe number under Steam64 ID is the number we're looking for!\nRemember to set your profile games and achievements to "Public"\\!`);
@@ -32,12 +31,12 @@ bot.command("create", async ctx => {
     if (!validSteamID) return ctx.reply("Please insert an valid Steam ID!\nUse /create for help");
     const profileUsername = await script.getSteamUsername(steamID);
     if (!profileUsername) return ctx.reply("No Steam user found. Please check the ID sent");
-    bot.telegram.sendMessage(DEV_ID, `New profile!\nTelegram ID: ${telegramID}`, {disable_notification: true});
-    ctx.reply(`Steam profile name: ${profileUsername}\nThe account is being set up!\nPlease wait a few seconds :3\nIf this is not your Steam Account, please wait for the proccess to finish and delete the account and set up again!`);
+    bot.telegram.sendMessage(DEV_ID, `New profile!\nTelegram ID: ${telegramID}\nUsername: ${ctx.from.username}`, {disable_notification: true});
+    ctx.reply(`Steam profile name: ${profileUsername}\nThe account is being set up!\nPlease wait a few seconds :3\nIf this is not your Steam Account, please wait for the process to finish and delete the account and set up again!`);
     ctx.reply("Let's get a look at your library!");
     const allGames = await script.getAllGames(steamID);
     if (allGames === false) {
-        bot.telegram.sendMessage(DEV_ID, `botController.js - Username retrieval\nSteam: ${profileUsername}\nTelegram ID: ${telegramID}\nTelegram Username: ${ctx.from.username}\nNo games found with "getAllGames script"`);
+        bot.telegram.sendMessage(DEV_ID, `botController.js - getAllGames retrieval\nSteam: ${profileUsername}\nTelegram ID: ${telegramID}\nTelegram Username: ${ctx.from.username}\nNo games found with "getAllGames script"`);
         return ctx.reply(`We found an error, please contact the developer for help!`);
     };
     if (!allGames || allGames.length == 0) return ctx.reply("Couldn't find any games, please check your profile settings to confirm if your game data is set to public\nAny data will be available after the next database update (starts at 00:01 everyday)");
@@ -67,7 +66,8 @@ bot.command("create", async ctx => {
     };
     const newProfile = {
         "telegramID": telegramID,
-        "steamID": steamID
+        "steamID": steamID,
+        "telegramUsername": ctx.from.username
     };
     usersList.push(newProfile);
     const usersListString = JSON.stringify(usersList, null, 1);
@@ -96,7 +96,8 @@ bot.command("create", async ctx => {
 
 bot.command("check", async ctx => {
     const telegramID = ctx.from.id;
-    const userRegistered = script.findUser(telegramID);
+    const usersList = require("../database/users.json");
+    const userRegistered = script.findUser(telegramID, usersList);
     if (!userRegistered) return ctx.reply("Sorry, you don't have an account created.\nTry using /create\nIf you already created an account, please be sure to use the same Telegram user od the created account");
     const profileUsername = await script.getSteamUsername(userRegistered.steamID);
     const firstDay = script.getFirstDay(telegramID);
@@ -108,7 +109,8 @@ bot.command("check", async ctx => {
 
 bot.command("delete", async ctx => {
     const telegramID = ctx.from.id;
-    const userRegistered = script.findUser(telegramID);
+    const usersList = require("../database/users.json");
+    const userRegistered = script.findUser(telegramID, usersList);
     if (!userRegistered) return ctx.reply(`No profiles found linked to your Telegram\nTo create one, use /create`);
     const confirmation = ctx.message.text.trim().slice(7).trim();
     if (confirmation != "flashback") return ctx.replyWithMarkdownV2(`To delete your account send:\n/delete flashback\nRemember that *ALL* your data will be deleted\\. Be sure of your decision since it's irreversible\\!`);
@@ -119,7 +121,7 @@ bot.command("delete", async ctx => {
         };
     });
     if (error) return ctx.reply(`We found an error, please contact the developer for help!`);
-    const newUserList = script.removeUser(telegramID);
+    const newUserList = script.removeUser(telegramID, usersList);
     const newUserListStringfied = JSON.stringify(newUserList, null, 1);
     error = await fs.writeFileSync("./src/database/users.json", newUserListStringfied, err => {
         if (err) {
@@ -129,12 +131,13 @@ bot.command("delete", async ctx => {
     });
     if (error) return ctx.reply(`We found an error, please contact the developer for help!`);
     bot.telegram.sendMessage(DEV_ID, `Profile deleted\nTelegram user: ${ctx.from.username}\nTelegram ID: ${telegramID}\nSteam ID: ${userRegistered.steamID}`);
-    return ctx.replyWithMarkdownV2("We are sorry to see you go *;\\-;*\nAll your data has been deleted\\!\nWe\\'ll be here if you want to come back \\*<3*");
+    return ctx.reply("We are sorry to see you go *;\\-;*\nAll your data has been deleted\\!\nWe\\'ll be here if you want to come back \\*<3*");
 });
 
 bot.command("game", async ctx => {
     const telegramID = ctx.from.id;
-    const userRegistered = script.findUser(telegramID);
+    const usersList = require("../database/users.json");
+    const userRegistered = script.findUser(telegramID, usersList);
     if (!userRegistered) return ctx.reply(`No profiles found linked to your Telegram\nTo create one, use /create`);
     const today = await script.getDayMonthYear();
     const allGamesList = await require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`);
@@ -195,7 +198,8 @@ const months = {
 bot.command("recall", async ctx => {
     const telegramID = ctx.from.id;
     console.log(telegramID)
-    const userRegistered = script.findUser(telegramID);
+    const usersList = require("../database/users.json");
+    const userRegistered = script.findUser(telegramID, usersList);
     if (!userRegistered) return ctx.reply(`No profile found linked to your Telegram\nTo create one, use /create`);
     const recallPeriod = ctx.update.message.text.trim().slice(7).trim();
     if (!recallPeriod) return ctx.reply("To recall a month, use: /recall [month] [year]\nExample: /recall mar 2023\nRemember, you can only recall months after the date you registered your Steam account");
@@ -266,7 +270,178 @@ bot.command("recall", async ctx => {
     return ctx.reply(`${message}`);
 });
 
+bot.command("beta", async ctx => {
+    return await ctx.reply("Beta testing is a way to help the dev to improve something use, like an app, game or product in general!\nTo join the beta team you just need to send /joinBeta!")
+});
+
+/* ----------------- BETA TESTING ----------------- */
+
+bot.command("joinBeta", async ctx => {
+    const telegramID = ctx.from.id;
+    const usersList = require("../database/users.json");
+    const userRegistered = script.findUser(telegramID, usersList);
+    if (!userRegistered) return ctx.reply("Sorry, you are not a user :/\nPlease use /create to join us and request to be a beta tester!");
+    const testersList = require("../database/betaTesters.json");
+    const testerRegistered = script.findUser(telegramID, testersList);
+    if (testerRegistered) {
+        if (testerRegistered.status == "pending") return ctx.reply ("You are already requested to be beta tester!\nIf you want to remove the request, just send /leaveBeta!");
+        if (testerRegistered.status == "approved") return ctx.reply ("You are already is a beta tester!\nIf you want to stop being a tester, just send /leaveBeta!");
+    }
+    if (testersList.length >= 6) return ctx.reply("I'm sorry, but we are not accepting more beta testers requests for now :/\nBe sure to pay attention to my messages to not miss out on the next time we call for more testers!")
+    const tester = {
+        telegramID,
+        "username": ctx.from.username,
+        "status": "pending",
+        "steamID": userRegistered.steamID
+    };
+    testersList.push(tester);
+    const testersListStrigfied = JSON.stringify(testersList, null, 1);
+    await fs.writeFileSync(`./src/database/betaTesters.json`, testersListStrigfied, err => {
+        if (err) {
+            console.log(err);
+            return bot.telegram.sendMessage(DEV_ID ,`Telegram ID: ${telegramID} - create betaTesters.json`, { disable_notification: true });
+        };
+    });
+    bot.telegram.sendMessage(DEV_ID, `Beta tester request\nTelegram ID: ${telegramID}\nUsername: ${ctx.from.username}`, { disable_notification: true });
+    return await ctx.reply("Thank you for helping this project come to life!\nYour information will be reviewed by the dev and you'll be notified!\nAt any point you can send /leaveBeta to leave the beta team");
+});
+
+bot.command("leaveBeta", async ctx => {
+    const telegramID = ctx.from.id;
+    const usersList = require("../database/users.json");
+    const userRegistered = script.findUser(telegramID, usersList);
+    if (!userRegistered) return ctx.reply("Sorry, you are not a user :/\nPlease use /create to join us!");
+    const testersList = require("../database/betaTesters.json");
+    const testerRegistered = script.findUser(telegramID, testersList);
+    if (!testerRegistered) return await ctx.reply("You are not a beta tester.\nIf you want to help the develop  ment of this project, just send /joinBeta");
+    const newTestersList = script.removeUser(telegramID, testersList);
+    const newTestersListStrigfied = JSON.stringify(newTestersList, null, 1);
+    await fs.writeFileSync(`./src/database/betaTesters.json`, newTestersListStrigfied, err => {
+        if (err) {
+            console.log(err);
+            return bot.telegram.sendMessage(DEV_ID ,`Telegram ID: ${telegramID} - create betaTesters.json (remove Tester)`);
+        };
+    });
+    bot.telegram.sendMessage(DEV_ID, `Beta tester left\nTelegramID: ${telegramID}\nTelegram username: ${userRegistered.username}`, { disable_notification: true })
+    return await ctx.reply("We are sad to see you go ;-;\nAt any point, if you want to join again the beta team, just send /joinBeta");
+});
+
+// bot.command("testBeta", async ctx => {
+//     return await ctx.reply("We now have the command /recallBeta. To have more details on your recall", { disable_notification: true })
+// });
+
+// bot.command("recallBeta", async ctx => {
+//         const telegramID = ctx.from.id;
+//         const testersList = require("../database/betaTesters.json");
+//         const testerRegistered = script.findUser(telegramID, testersList);
+//         if (!testerRegistered) return ctx.reply(`You are not a tester, sorry :/\nTo become part of the beta team, send /joinBeta!`);
+//         const recallPeriod = ctx.update.message.text.trim().slice(11).trim();
+//         if (!recallPeriod) return ctx.reply("To recall a month, use: /recall [month] [year]\nExample: /recall mar 2023\nRemember, you can only recall months after the date you registered your Steam account");
+//         const monthYear = recallPeriod.split(" ");
+//         const date = {
+//             month: monthYear[0],
+//             year: monthYear[1]
+//         };
+//         if (!date.month || !date.year) return ctx.reply("Please use the format: /recall [month] [year]");
+//         const monthIsNumbers = script.verifyOnlyNumbers(monthYear[0]);
+//         if (!monthIsNumbers) date.month = months[date.month];
+//         const yearsList = fs.readdirSync(`./src/database/usersGames/${telegramID}`, err => {
+//             if (err) {
+//                 bot.telegram.sendMessage(DEV_ID, `Telegram ID: ${telegramID}\nrecall > yearsList`);
+//                 return ctx.reply(`We found an error, please contact the developer for help!`);
+//             };
+//         });
+//         const yearRegistered = yearsList.find(year => {
+//             if (year == date.year) return year;
+//         });
+//         if (!yearRegistered) return ctx.reply("I'm sorry, but the year asked is not at your database");
+//         const monthsList = fs.readdirSync(`./src/database/usersGames/${telegramID}/${yearRegistered}`, err => {
+//             if (err) {
+//                 bot.telegram.sendMessage(DEV_ID, `Telegram ID: ${telegramID}\nrecall > monsthsList`);
+//                 return ctx.reply(`We found an error, please contact the developer for help!`);
+//             };
+//         });
+//         const monthRegistered = monthsList.find(month => {
+//             if (month == date.month) return month;
+//         });
+//         if (!monthRegistered) return ctx.reply("I'm sorry, but the month asked is not at your database");
+//         const daysList = fs.readdirSync(`./src/database/usersGames/${telegramID}/${date.year}/${date.month}`, err => {
+//             if (err) {
+//                 bot.telegram.sendMessage(DEV_ID, `Telegram ID: ${telegramID}\nrecall > daysList`);
+//                 return ctx.reply(`We found an error, please contact the developer for help!`);
+//             };
+//         });
+//         if (daysList.length <= 2) return ctx.reply("Sorry, we need, at least, two days of the month to be saved before making a recall");
+//         const allGamesList = await require(`../database/usersGames/${telegramID}/${date.year}/${date.month}/allGames.json`);
+//         const firstDayGamesList = await require(`../database/usersGames/${telegramID}/${date.year}/${date.month}/${daysList[0]}`);
+//         const recallInfo = script.compareUpdatesLists(firstDayGamesList, allGamesList);
+//         for (let dayIndex = 1; dayIndex < daysList.length - 1; dayIndex++) {
+//             const gamesPlayed = await require(`../database/usersGames/${telegramID}/${date.year}/${date.month}/${daysList[dayIndex]}`);
+//             for (let gameIndex = 0; gameIndex < gamesPlayed.length; gameIndex++) {
+//                 const gameToSave = await recallInfo.find((game, index) => {
+//                     if (gamesPlayed[gameIndex].name == game.name) {
+//                         recallInfo[index].playtimeUpdated = gamesPlayed[gameIndex].playtime;
+//                         if (recallInfo[index].achieved) recallInfo[index].achievedUpdated = gamesPlayed[gameIndex].achieved;
+//                         return true;
+//                     };
+//                 });
+//                 if (!gameToSave) {
+//                     gamesPlayed[gameIndex].playtimeUpdated = gamesPlayed[gameIndex].playtime;
+//                     if (gamesPlayed[gameIndex].achieved) gamesPlayed[gameIndex].achievedUpdated = gamesPlayed[gameIndex].achieved;
+//                     recallInfo.push(gamesPlayed[gameIndex]);
+//                 };
+//             };
+//         };
+//         let message = ""
+//         for (let recallIndex = 0; recallIndex < recallInfo.length; recallIndex++) {
+//             const monthPlaytime = recallInfo[recallIndex].playtimeUpdated - recallInfo[recallIndex].playtime;
+//             if (monthPlaytime == 0) continue;
+//             const monthPlaytimeConverted = script.convertMinutesToHours(monthPlaytime);
+//             const achievementsDone = recallInfo[recallIndex].achievedUpdated - recallInfo[recallIndex].achieved;
+//             message += `\n${recallInfo[recallIndex].name}\nYou played for ${monthPlaytimeConverted.hours} hours and ${monthPlaytimeConverted.minutes} minutes\nYou also completed ${achievementsDone} new achievements!\n`;
+//         };
+//         message.trim();
+//         return ctx.reply(`${message}`);
+        
+// });
+
+// bot.command("game", async ctx => {
+//     const telegramID = ctx.from.id;
+//     const testersList = require("../database/betaTesters.json");
+//     const testerRegistered = script.findUser(telegramID, testersList);
+//     if (!testerRegistered) return ctx.reply(`You are not a tester, sorry :/\nTo become part of the beta team, send /joinBeta!`);
+//     const today = await script.getDayMonthYear();
+//     const allGamesList = await require(`../database/usersGames/${telegramID}/${today.year}/${today.month}/allGames.json`);
+//     if (allGamesList == []) return "Sorry, you don't have any games saved :/\nPlease check you profile and set it to public so we can save your games on the next update <3";
+//     const gameNumber = ctx.update.message.text.trim().slice(6).trim();
+//     if (!gameNumber) {
+//         const gamesListMessage = script.createGameListForUser(allGamesList);
+//         for (let index = 0; index < gamesListMessage.length; index++){
+//             await ctx.reply(`${gamesListMessage[index]}`);
+//         }
+//         return ctx.reply(`To see some basic info of any game, just send: /game [number]`);
+//     };
+//     if (gameNumber.length > 5) return ctx.reply(`Could not read the number, please enter a number between 1 and ${allGamesList.length}`);
+//     const isOnlyNumbers = script.verifyOnlyNumbers(gameNumber);
+//     if (!isOnlyNumbers) return ctx.reply("Please use only numbers");
+//     const gameIndex = gameNumber - 1;
+//     if (gameNumber > allGamesList.length || gameNumber == 0) return ctx.reply(`No game found with this number. Please enter a number between 1 and ${allGamesList.length}`);
+//     const { name, playtime, achieved, achievements, appid } = allGamesList[gameIndex];
+//     const playtimeConverted = script.convertMinutesToHours(playtime);
+//     let message = `${name}\nPlaytime: ${playtimeConverted.hours}h ${playtimeConverted.minutes}min`
+//     if (achievements) message += (`\nAchievements: ${achieved}/${achievements.length}`)
+//     const imgUrl = await script.getGameBanner(appid)
+//     if(imgUrl) await bot.telegram.sendPhoto(telegramID, imgUrl);
+//     return ctx.reply(`${message}`);
+// });
+
 /* ----------------- DEV TOOLS ----------------- */
+
+bot.command("info", async ctx => {
+    if (ctx.update.message.from.id != DEV_ID) return;
+    console.log(ctx.from.username)
+    console.log(ctx.from)
+});
 
 //TO BE REFACTORED
 bot.command("reformat", async ctx => {
@@ -344,7 +519,7 @@ bot.command("reformat2", async ctx => {
     ctx.reply("Reformat2 done")
 });
 
-bot.command("update", async ctx => {
+bot.command("DBupdate", async ctx => {
     if (ctx.update.message.from.id != DEV_ID) return;
     ctx.reply("Starting to update Database!", {disable_notification: true});
     let time = script.getTime();
@@ -462,6 +637,7 @@ bot.command("sdUpdate", async ctx => {
     time = script.getTime();
     await ctx.reply("Auto updated Database!", {disable_notification: true});
     await ctx.reply(`${time}`, {disable_notification: true});
+    await ctx.reply("Turning off server");
     return script.turnOffSystem(10);
 });
 
@@ -540,9 +716,62 @@ bot.command("DEVrecall", async ctx => {
     };
 });
 
-bot.command("test", async ctx => {
+bot.command("messageAll", async ctx => {
     if (ctx.update.message.from.id != DEV_ID) return;
-    exec('shutdown -s -t 3600')
+    const usersList = require("../database/users.json")
+    const message = ctx.update.message.text.trim().slice(12).trim();
+    if (message == "") return ctx.reply("No message detected");
+    for (let index = 0; index < usersList.length; index++){
+        const { telegramID } = usersList[index];
+        await bot.telegram.sendMessage(telegramID, `${message}`, {disable_notification: true});
+    };
+});
+
+bot.command("messageBetas", async ctx => {
+    if (ctx.update.message.from.id != DEV_ID) return;
+    const usersList = require("../database/betaTesters.json")
+    const message = ctx.update.message.text.trim().slice(13).trim();
+    if (message == "") return ctx.reply("No message detected");
+    for (let index = 0; index < usersList.length; index++){
+        const { telegramID } = usersList[index];
+        await bot.telegram.sendMessage(telegramID, `${message}`, {disable_notification: true});
+    };
+});
+
+bot.command("betaRequests", async ctx => {
+    if (ctx.update.message.from.id != DEV_ID) return;
+    const testersList = require("../database/betaTesters.json");
+    const filteredTesters = script.filterObjectList(testersList, "status", "pending");
+    const requestCounter = filteredTesters.length
+    ctx.reply(`Number of requests: ${requestCounter}`, { disable_notification: true });
+});
+
+bot.command("betaApprove", async ctx => {
+    if (ctx.update.message.from.id != DEV_ID) return;
+    const testersList = require("../database/betaTesters.json");
+    const betasApproved = []
+    for (let index = 0; index < testersList.length; index++){
+        if (testersList[index].status != "pending") continue;
+        testersList[index].status = "approved";
+        const { telegramID } = testersList[index];
+        bot.telegram.sendMessage(telegramID, "Congratulations!\nYou now joined the beta team and can try out new features before they launch to everyone else!\nTo see what is new, send /testBeta", { disable_notification: true });
+        betasApproved.push(testersList[index].username);
+    };
+    const testersListStrigfied = JSON.stringify(testersList, null, 1);
+    await fs.writeFileSync(`./src/database/betaTesters.json`, testersListStrigfied, err => {
+        if (err) {
+            console.log(err);
+            return bot.telegram.sendMessage(DEV_ID ,`approving all betaTesters.json`, { disable_notification: true });
+        };
+    });
+    ctx.reply(`All beta testers approved!\n${betasApproved}`, { disable_notification: true })
+});
+
+bot.command("steam", async ctx => {
+    if (ctx.update.message.from.id != DEV_ID) return;
+    const steamID = ctx.update.message.text.trim().slice(6).trim();
+    const username = await script.getSteamUsername(steamID)
+    ctx.reply(`${username}`)
 })
 
 bot.launch();

@@ -3,6 +3,6 @@ node_modules
 NukeTown.js
 src/database/usersGames
 src/database/users.json
+src/database/betaTesters.json
 src/backup
 tests.js
-src/controller/src

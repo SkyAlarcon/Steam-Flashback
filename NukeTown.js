@@ -21,7 +21,11 @@ const main = async() => {
       });
   console.log(gamesList)
 }
-main()
+// main()
+
+// const abc = "['a', 'b']"
+// const lst = 
+console.log((true+true+true)/(false))
 
 
 /*
